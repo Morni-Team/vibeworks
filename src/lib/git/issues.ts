@@ -188,7 +188,8 @@ function withTaskLock<T>(taskId: string, fn: () => Promise<T>): Promise<T> {
 }
 
 /** Legt das Issue einer Aufgabe an oder bringt es auf ihren Stand. Wirft nie. */
-export function pushTaskIssue(taskId: string, ctx?: IssueContext | null): Promise<void> {
+export interface PushTaskIssueResult { disabled?: boolean; created?: boolean; error?: string | null; }
+export function pushTaskIssue(taskId: string, ctx?: IssueContext | null): Promise<PushTaskIssueResult | void> {
   return withTaskLock(taskId, async () => {
     const task = await db.task.findUnique({ where: { id: taskId } });
     if (!task) return;
@@ -199,7 +200,7 @@ export function pushTaskIssue(taskId: string, ctx?: IssueContext | null): Promis
     if (locked && !task.issueNumber) return;
     const createWith = task.issueNumber ? null : await creatorApi(task, ctx);
     if (!task.issueNumber && !createWith) {
-      if (task.issueError !== tk("git", "errors.issueNeedsAccount")) await db.$executeRaw`UPDATE "Task" SET "issueError" = ${tk("git", "errors.issueNeedsAccount")} WHERE "id" = ${task.id}`;
+      if (task.issueError !== tk("git", "errors.issueNeedsAccount")) { await db.$executeRaw`UPDATE "Task" SET "issueError" = ${tk("git", "errors.issueNeedsAccount")} WHERE "id" = ${task.id}`; return { error: tk("git", "errors.issueNeedsAccount") }; }
       return;
     }
     try {
@@ -213,12 +214,14 @@ export function pushTaskIssue(taskId: string, ctx?: IssueContext | null): Promis
       // Sofort merken – falls das Label danach scheitert, entsteht kein zweites Issue.
       await db.$executeRaw`UPDATE "Task" SET "issueNumber" = ${ref.number}, "issueUrl" = ${ref.url}, "issueError" = NULL WHERE "id" = ${task.id}`;
       await ctx.api.setStatusLabel(ref, task.status === "DONE" ? null : labelForStatus(task.status));
+      return { created: !task.issueNumber };
     } catch (err) {
       if (isIssuesDisabled(err)) {
         await markIssuesOff(task.projectId);
-        return;
+        return { disabled: true };
       }
       await db.$executeRaw`UPDATE "Task" SET "issueError" = ${describe(err)} WHERE "id" = ${task.id}`;
+      return { error: describe(err) };
     }
   });
 }
@@ -276,12 +279,11 @@ async function runSync(projectId: string): Promise<IssueSyncResult | null> {
     db.task.findMany({ where: { projectId, issueNumber: null, status: { not: "DONE" }, ...where }, orderBy: { createdAt: "asc" }, take, select: { id: true } });
   const missing = [...(await pick({ OR: [{ issueError: null }, { issueError: { not: needsAccount } }] }, BACKFILL_LIMIT)), ...(await pick({ issueError: needsAccount }, 5))];
   for (const { id } of missing) {
-    await pushTaskIssue(id, ctx);
-    if (issuesPaused((await db.project.findUnique({ where: { id: projectId }, select: { issuesOffAt: true } }))?.issuesOffAt)) return null;
-    const t = await db.task.findUnique({ where: { id }, select: { issueNumber: true, issueError: true } });
-    if (t?.issueNumber) result.created++;
-    else if (t?.issueError && t.issueError !== needsAccount) {
-      result.error = t.issueError;
+    const pushResult = await pushTaskIssue(id, ctx);
+    if (pushResult?.disabled) return null;
+    if (pushResult?.created) result.created++;
+    else if (pushResult?.error && pushResult.error !== needsAccount) {
+      result.error = pushResult.error;
       break; // Meist ein Rechteproblem – nicht 25-mal dasselbe versuchen
     }
   }
