@@ -40,9 +40,14 @@ async function runDigest(now = new Date()): Promise<number> {
     where: { OR: [{ digestSentOn: null }, { digestSentOn: { not: today } }] },
     select: { userId: true, events: true },
   });
+  if (rows.length > 0) {
+    await db.notificationSettings.updateMany({
+      where: { userId: { in: rows.map(r => r.userId) } },
+      data: { digestSentOn: today }
+    });
+  }
   let sent = 0;
   for (const row of rows) {
-    await db.notificationSettings.update({ where: { userId: row.userId }, data: { digestSentOn: today } });
     if (!eventsOf(row.events).taskDue) continue;
     const tasks = await db.task.findMany({
       where: { project: { ...visibleTo(row.userId), status: { not: "ARCHIVED" } }, status: { not: "DONE" }, dueDate: { not: null, lt: dayKeyToDate(addDaysKey(today, 1)) } },
