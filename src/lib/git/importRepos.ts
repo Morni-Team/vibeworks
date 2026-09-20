@@ -114,9 +114,12 @@ async function runImport(credentialId: string): Promise<ImportResult> {
   // Commits der neuen Projekte gleich holen – nacheinander, im Hintergrund
   if (created.length) {
     void (async () => {
-      for (const id of created) {
-        const p = await db.project.findUnique({ where: { id }, select: { id: true, ownerId: true, repoUrl: true, repoTokenCipher: true } });
-        if (p) await syncProjectRepository(p).catch(() => undefined);
+      const projects = await db.project.findMany({
+        where: { id: { in: created } },
+        select: { id: true, ownerId: true, repoUrl: true, repoTokenCipher: true }
+      });
+      for (const p of projects) {
+        await syncProjectRepository(p).catch(() => undefined);
       }
     })();
   }
