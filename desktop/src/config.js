@@ -27,4 +27,4 @@ function saveConfig() {
 const getConfig = () => cfg;
 const updateConfig = (newCfg) => { cfg = { ...cfg, ...newCfg }; };
 
-module.exports = { DEFAULTS, getConfig, updateConfig, loadConfig, saveConfig };
+module.exports = { getConfig, updateConfig, loadConfig, saveConfig };
