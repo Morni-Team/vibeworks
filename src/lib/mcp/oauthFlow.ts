@@ -16,22 +16,51 @@ import type { KeyScope } from "./keySettings";
 
 /** Offene Abläufe je Adresse – mehr braucht kein Programm. */
 const MAX_PENDING_PER_IP = 5;
+/** Registrierte Programme je Adresse und Stunde. */
+const MAX_CLIENTS_PER_IP = 20;
+/** Wie lange eine Registrierung gilt – lange genug für mehrere Anläufe. */
+const CLIENT_TTL_MS = 24 * 60 * 60_000;
 
-/** Dynamische Client-Registrierung (RFC 7591) – alles flüchtig, kein Konto nötig. */
+/** Abgelaufene Abläufe und Registrierungen wegräumen. */
+async function sweepOld(now: Date) {
+  await db.oAuthFlow.deleteMany({ where: { expiresAt: { lt: now } } });
+  await db.oAuthClient.deleteMany({ where: { expiresAt: { lt: now } } });
+}
+
+/** Dynamische Client-Registrierung (RFC 7591) – kurzlebig, kein Konto nötig. */
 export async function registerClient(input: { client_name: string; redirect_uris: string[] }, ip: string | null) {
   const now = new Date();
-  await db.oAuthFlow.deleteMany({ where: { expiresAt: { lt: now } } });
-  if (ip && (await db.oAuthFlow.count({ where: { ip, createdAt: { gt: new Date(now.getTime() - 60 * 60_000) } } })) >= MAX_PENDING_PER_IP * 4) {
+  await sweepOld(now);
+  if (ip && (await db.oAuthClient.count({ where: { ip, createdAt: { gt: new Date(now.getTime() - 60 * 60_000) } } })) >= MAX_CLIENTS_PER_IP) {
     throw new ApiError(429, "Too many client registrations from this address – try again later.");
   }
   const clientId = newClientId();
-  // Der Client ist flüchtig: mit dem ersten Ablauf nach 10 Minuten weg. Für die
-  // Autorisierung reicht das – registrieren und sofort autorisieren gehört zusammen.
+  // Name und Rückkehr-Adressen merken: nur damit lässt sich die Autorisierung
+  // später prüfen und der Mensch sieht, welches Programm wirklich fragt (#188)
+  await db.oAuthClient.create({
+    data: { clientId, name: input.client_name, redirectUris: input.redirect_uris, ip, expiresAt: new Date(now.getTime() + CLIENT_TTL_MS) },
+  });
   return { client_id: clientId, client_id_issued_at: Math.floor(now.getTime() / 1000), client_name: input.client_name, redirect_uris: input.redirect_uris, token_endpoint_auth_method: "none" };
+}
+
+/**
+ * Registriertes Programm zu einer Kennung – nur, wenn die Rückkehr-Adresse
+ * exakt zur Registrierung passt (RFC 6749 §3.1.2.3). Sonst könnte jeder eine
+ * fremde Kennung mit eigener Adresse verbinden und den Code abfangen (#188).
+ */
+export async function clientForAuthorization(clientId: string, redirectUri: string): Promise<{ name: string } | null> {
+  const row = await db.oAuthClient.findUnique({ where: { clientId }, select: { name: true, redirectUris: true, expiresAt: true } });
+  if (!row || row.expiresAt.getTime() <= Date.now()) return null;
+  return row.redirectUris.includes(redirectUri) ? { name: row.name } : null;
 }
 
 /** Autorisierung starten: Code anlegen, Mensch auf /verbinden schicken. */
 export async function startAuthorization(input: { clientId: string; clientName: string; redirectUri: string; scope: KeyScope; codeChallenge: string; state: string | null; ip: string | null }) {
+  const now = new Date();
+  await sweepOld(now);
+  if (input.ip && (await db.oAuthFlow.count({ where: { ip: input.ip, status: "pending", createdAt: { gt: new Date(now.getTime() - 60 * 60_000) } } })) >= MAX_PENDING_PER_IP) {
+    throw new ApiError(429, "Too many pending authorizations from this address – try again later.");
+  }
   const code = newAuthorizationCode();
   await db.oAuthFlow.create({
     data: {
@@ -105,6 +134,8 @@ export async function tokenFor(input: { code: string; code_verifier: string; red
   if (result.kind === "error" || !row?.tokenCipher) return { error: result.kind === "error" ? result.error : "invalid_grant" } as const;
   const { count } = await db.oAuthFlow.updateMany({ where: { id: row.id, status: "approved" }, data: { status: "claimed", tokenCipher: null } });
   if (!count) return { error: "invalid_grant" } as const;
-  return { access_token: decrypt(row.tokenCipher), token_type: "Bearer", scope: row.scope, expires_in: 0 } as const;
+  // Kein expires_in: der Schlüssel läuft nicht ab. „0“ hieße nach RFC 6749 §5.1
+  // „schon abgelaufen“ – Programme würden ihn sofort wieder wegwerfen.
+  return { access_token: decrypt(row.tokenCipher), token_type: "Bearer", scope: row.scope } as const;
 }
 

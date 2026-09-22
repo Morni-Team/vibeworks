@@ -115,4 +115,18 @@ describe("CI-Designer (#107)", () => {
   it("findet doppelte Namen", () => {
     expect(duplicateNames(pipeline([newStep("custom", { name: "A" }), newStep("custom", { name: "a" }), newStep("custom", { name: "B" })]))).toEqual(["a"]);
   });
+
+  // #188: randomUUID gibt es im Browser nur über https – Schritte müssen sich
+  // auch im Heimnetz über http anlegen lassen
+  it("legt Kennungen ohne crypto.randomUUID an", () => {
+    const uuid = crypto.randomUUID;
+    try {
+      Reflect.deleteProperty(crypto as unknown as Record<string, unknown>, "randomUUID");
+      const ids = Array.from({ length: 50 }, () => newStep("custom").id);
+      expect(ids.every((id) => /^[a-z0-9]{4,16}$/.test(id))).toBe(true);
+      expect(new Set(ids).size).toBe(ids.length);
+    } finally {
+      Object.defineProperty(crypto, "randomUUID", { value: uuid, configurable: true, writable: true });
+    }
+  });
 });

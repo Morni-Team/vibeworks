@@ -51,7 +51,14 @@ export const ciPipelineSchema = z.object({
 });
 export type CiPipeline = z.infer<typeof ciPipelineSchema>;
 
-const newStepId = () => crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+// Kennung eines Schritts: muss nur eindeutig sein, ist kein Geheimnis. Bewusst
+// getRandomValues statt randomUUID – letzteres gibt es im Browser nur über
+// https oder localhost, sonst ließe sich im Heimnetz kein Schritt mehr anlegen.
+const newStepId = () => {
+  const bytes = new Uint8Array(4);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+};
 
 const STEP_DEFAULT_NAME: Record<StepKind, string> = {
   "node-install": "Node einrichten",

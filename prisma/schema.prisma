@@ -1028,6 +1028,22 @@ model OAuthFlow {
   @@index([expiresAt])
 }
 
+/// Dynamisch registriertes KI-Programm (#141, RFC 7591). Kurzlebig und ohne
+/// Konto: gemerkt wird nur, wer sich gemeldet hat und wohin zurückgekehrt
+/// werden darf – die Autorisierung prüft beides.
+model OAuthClient {
+  id           String   @id @default(cuid())
+  clientId     String   @unique
+  name         String
+  /// Erlaubte Rückkehr-Adressen – exakt so, wie sie bei der Registrierung kamen
+  redirectUris String[] @default([])
+  ip           String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 /// API-Schlüssel für Claude Code und andere MCP-Clients – gespeichert wird nur der SHA-256.
 model ApiToken {
   id                String    @id @default(cuid())

@@ -28,6 +28,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.2",
+    date: "2026-09-22",
+    title: "Nacharbeiten aus der Code-Prüfung",
+    titleEn: "Follow-ups from the code review",
+    changes: [
+      {
+        type: "fix",
+        text: "CI-Designer: „Schritt hinzufügen“ warf einen Fehler, sobald VibeWorks nicht über https oder localhost aufgerufen wurde – im Heimnetz also immer. Die Kennung eines Schritts entsteht jetzt ohne den Zufallsgeber, den es nur über https gibt",
+        en: "CI designer: “Add step” threw an error whenever VibeWorks was opened without https or localhost – so always on a home network. A step's id is now created without the random source that only exists over https",
+      },
+      {
+        type: "fix",
+        text: "OAuth für KI-Programme: Kennung und Rückkehr-Adresse werden jetzt gegen die Anmeldung des Programms geprüft. Vorher war beides frei wählbar – ein untergeschobener Link hätte den Zugangsschlüssel abfangen können. Die Freigabe-Seite nennt dafür jetzt den echten Namen des Programms statt „OAuth-Programm“",
+        en: "OAuth for AI programs: client id and return address are now checked against the program's registration. Before, both were freely choosable – a planted link could have intercepted the access key. The consent page now shows the program's real name instead of “OAuth program”",
+        link: "/verbinden",
+      },
+      {
+        type: "fix",
+        text: "Fehlt der Git-Zugang, meldet VibeWorks das wieder klar, statt mit leerem Schlüssel anzufragen und „Bad credentials“ zu bekommen",
+        en: "Without a Git access, VibeWorks says so clearly again instead of asking with an empty key and getting “Bad credentials”",
+      },
+      {
+        type: "besser",
+        text: "Weitere Kleinigkeiten: der Zugangsschlüssel gilt nicht mehr als sofort abgelaufen, Autorisierungen sind je Adresse begrenzt und werden aufgeräumt, und die Tageszusammenfassung fällt nicht mehr für alle aus, wenn ein Lauf abbricht",
+        en: "More small things: the access key is no longer reported as already expired, authorizations are limited per address and cleaned up, and the daily summary no longer fails for everyone when a run breaks off",
+      },
+    ],
+  },
+  {
     version: "1.5.1",
     date: "2026-09-19",
     title: "OAuth-Freigabe kehrt zum Programm zurück",

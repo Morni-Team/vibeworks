@@ -62,12 +62,13 @@ export async function issueTokenFor(project: ProjectTokenInput): Promise<{
       // aber mit Link, damit man die Installation nachholen kann (Identität bleibt sonst der Besitzer)
       const token = await appIssueToken({ botAppId: bot.botAppId, botAppKeyCipher: bot.botAppKeyCipher }, parsed);
       if (token) return { token, source: "bot", botLogin: bot.botLogin, botInstallUrl: null };
-      return {
-        token: (await fallbackIssueToken(project)) ?? "",
-        source: "account",
-        botLogin: null,
-        botInstallUrl: bot.botAppSlug ? botAppInstallUrl(bot.botAppSlug) : null,
-      };
+      // Ohne eigenen Zugang gibt es hier nichts zu holen: lieber null als ein
+      // leeres Token, sonst liefe die Anfrage in ein 401 statt in die Meldung
+      // „braucht einen Zugang“
+      const fallback = await fallbackIssueToken(project);
+      return fallback
+        ? { token: fallback, source: "account" as const, botLogin: null, botInstallUrl: bot.botAppSlug ? botAppInstallUrl(bot.botAppSlug) : null }
+        : null;
     } else if (bot?.botCipher) {
       const token = tryDecrypt(bot.botCipher);
       if (token) return { token, source: "bot", botLogin: bot.botLogin, botInstallUrl: null };

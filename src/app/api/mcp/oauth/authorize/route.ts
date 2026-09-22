@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { clientIp } from "@/lib/api";
 import { authorizeSchema } from "@/lib/mcp/oauthFlowLogic";
-import { startAuthorization } from "@/lib/mcp/oauthFlow";
+import { clientForAuthorization, startAuthorization } from "@/lib/mcp/oauthFlow";
 
 // Autorisierung starten: Das Programm schickt den Browser des Menschen hierher
 // (GET, wie im OAuth-Standard üblich). VibeWorks legt den Code an und leitet
@@ -22,9 +22,15 @@ export async function GET(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: "invalid_request", error_description: "redirect_uri must be https (or http on localhost)." }, { status: 400 });
   }
+  // Kennung und Rückkehr-Adresse müssen aus derselben Registrierung stammen –
+  // sonst ließe sich ein fremdes Programm vortäuschen und der Code abfangen (#188)
+  const client = await clientForAuthorization(view.client_id, view.redirect_uri);
+  if (!client) {
+    return NextResponse.json({ error: "invalid_client", error_description: "Unknown client_id, or redirect_uri does not match the registered one. Register at /api/mcp/oauth/register first." }, { status: 400 });
+  }
   const redirect = await startAuthorization({
     clientId: view.client_id,
-    clientName: "OAuth-Programm",
+    clientName: client.name,
     redirectUri: view.redirect_uri,
     scope: view.scope,
     codeChallenge: view.code_challenge,

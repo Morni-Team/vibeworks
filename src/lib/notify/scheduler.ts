@@ -40,22 +40,27 @@ async function runDigest(now = new Date()): Promise<number> {
     where: { OR: [{ digestSentOn: null }, { digestSentOn: { not: today } }] },
     select: { userId: true, events: true },
   });
-  if (rows.length > 0) {
-    await db.notificationSettings.updateMany({
-      where: { userId: { in: rows.map(r => r.userId) } },
-      data: { digestSentOn: today }
-    });
-  }
+  // Wer heute nichts bekommt, wird am Ende in einem Rutsch abgehakt; wer eine
+  // Zusammenfassung bekommt, direkt vor dem Versand – lieber einmal verpasst
+  // als zweimal geschickt, und ein Abbruch verschluckt nicht den ganzen Tag.
+  const skipped: string[] = [];
   let sent = 0;
   for (const row of rows) {
-    if (!eventsOf(row.events).taskDue) continue;
+    if (!eventsOf(row.events).taskDue) {
+      skipped.push(row.userId);
+      continue;
+    }
     const tasks = await db.task.findMany({
       where: { project: { ...visibleTo(row.userId), status: { not: "ARCHIVED" } }, status: { not: "DONE" }, dueDate: { not: null, lt: dayKeyToDate(addDaysKey(today, 1)) } },
       orderBy: { dueDate: "asc" },
       take: 20,
       select: { title: true, dueDate: true, project: { select: { name: true } } },
     });
-    if (!tasks.length) continue;
+    if (!tasks.length) {
+      skipped.push(row.userId);
+      continue;
+    }
+    await db.notificationSettings.update({ where: { userId: row.userId }, data: { digestSentOn: today } });
     await notifyUser(row.userId, "taskDue", (t, locale) => ({
       event: "taskDue",
       title: t("events.taskDue.title", { n: tasks.length }),
@@ -65,6 +70,7 @@ async function runDigest(now = new Date()): Promise<number> {
     }));
     sent++;
   }
+  if (skipped.length) await db.notificationSettings.updateMany({ where: { userId: { in: skipped } }, data: { digestSentOn: today } });
   return sent;
 }
 
