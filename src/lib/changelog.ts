@@ -28,6 +28,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.4",
+    date: "2026-09-22",
+    title: "Repo-Check läuft bei jedem Commit",
+    titleEn: "Repo check now runs on every commit",
+    changes: [
+      {
+        type: "fix",
+        text: "Der Repo-Check startete bisher nur, wenn sich seine eigene Datei änderte – bei normalen Code-Änderungen also nie. Jetzt läuft er bei jedem Commit auf dem Hauptzweig und bei Pull Requests; reine Textänderungen wie Doku lösen ihn weiterhin nicht aus",
+        en: "The repo check only started when its own file changed – so never on normal code changes. It now runs on every commit to the main branch and on pull requests; pure text changes like docs still don't trigger it",
+      },
+      {
+        type: "besser",
+        text: "Die Prüfwerkzeuge sind auf feste Versionen festgelegt statt auf „neueste“ – derselbe Stand liefert damit wieder dasselbe Ergebnis",
+        en: "The scanning tools are pinned to fixed versions instead of “latest” – the same code now yields the same result again",
+      },
+      {
+        type: "besser",
+        text: "Der Repo-Check benutzt dieselbe Code-Analyse-Ausnahmeliste wie das Projekt selbst, sofern vorhanden – keine doppelten Meldungen mehr für längst geduldete Stellen",
+        en: "The repo check uses the project's own code-analysis baseline where present – no more duplicate reports for long-accepted spots",
+      },
+    ],
+  },
+  {
     version: "1.5.3",
     date: "2026-09-22",
     title: "Code-Analyse aufgeräumt",
