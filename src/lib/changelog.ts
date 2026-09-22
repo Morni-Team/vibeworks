@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.6",
+    date: "2026-09-22",
+    title: "Abhängigkeiten aufgefrischt",
+    titleEn: "Dependencies refreshed",
+    changes: [
+      {
+        type: "besser",
+        text: "Neuere Versionen von Next.js, dotenv, Electron, tsx, den Node-Typen und den beiden Prüfwerkzeugen – alles mit Typprüfung, Tests, Migrationen und Build nachgeprüft",
+        en: "Newer versions of Next.js, dotenv, Electron, tsx, the Node types and both checking tools – all verified with type check, tests, migrations and build",
+      },
+    ],
+  },
+  {
     version: "1.5.5",
     date: "2026-09-22",
     title: "Repo-Check sagt, woran man ist",
