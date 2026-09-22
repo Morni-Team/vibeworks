@@ -35,7 +35,7 @@ export const BACKGROUND_PRESETS = [
   "bokeh",
   "plain",
 ] as const;
-export type BackgroundPresetId = (typeof BACKGROUND_PRESETS)[number];
+type BackgroundPresetId = (typeof BACKGROUND_PRESETS)[number];
 
 const GRADIENT_KINDS = ["linear", "radial", "conic"] as const;
 export type GradientKind = (typeof GRADIENT_KINDS)[number];
@@ -103,7 +103,7 @@ export const themeSchema = z.object({
 });
 
 export type Theme = z.infer<typeof themeSchema>;
-export type ThemeMode = Theme["mode"];
+type ThemeMode = Theme["mode"];
 
 // ── Farbschemata als Startpunkt ─────────────────────────────
 

@@ -9,7 +9,7 @@ export const DISCORD_API = "https://discord.com/api/v10";
 /** Rechte des Bots: Kanäle sehen, Nachrichten senden, Links einbetten – mehr nicht. */
 const BOT_PERMISSIONS = String(1024 + 2048 + 16384);
 
-export { REPORT_MODES, type ReportMode } from "./modes";
+export { REPORT_MODES } from "./modes";
 
 /** Stunde (Europe/Berlin), ab der der Bericht verschickt wird; wöchentlich montags. */
 const REPORT_HOUR = 8;

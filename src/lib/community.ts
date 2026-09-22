@@ -48,7 +48,7 @@ const visibleProject = { inCommunity: true, buriedAt: null, owner: { active: tru
 export function communityProject(projectId: string) {
   return db.project.findFirst({ where: { id: projectId, ...visibleProject }, select: projectSelect });
 }
-export type CommunityProject = NonNullable<Awaited<ReturnType<typeof communityProject>>>;
+type CommunityProject = NonNullable<Awaited<ReturnType<typeof communityProject>>>;
 
 export async function requireCommunityProject(projectId: string) {
   const project = await communityProject(projectId);

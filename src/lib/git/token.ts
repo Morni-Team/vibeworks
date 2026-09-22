@@ -229,4 +229,4 @@ function evaluateScopesView(provider: string, kind: string | null, scopes: strin
   return { missing: r.missing, optionalMissing: r.optionalMissing };
 }
 
-export type GitConnectionView = Awaited<ReturnType<typeof credentialList>>[number];
+type GitConnectionView = Awaited<ReturnType<typeof credentialList>>[number];

@@ -7,7 +7,7 @@ import { INTL_LOCALE } from "./i18n/config";
 
 export const CURRENCIES = ["EUR", "USD", "CHF", "GBP"] as const;
 export const INTERVALS = ["MONTHLY", "YEARLY", "ONCE"] as const;
-export type Currency = (typeof CURRENCIES)[number];
+type Currency = (typeof CURRENCIES)[number];
 export type CostInterval = (typeof INTERVALS)[number];
 
 /** Warnung so viele Tage vor einer Verlängerung. */

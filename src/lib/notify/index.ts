@@ -120,4 +120,4 @@ export function notificationView(s: NotificationSettings | null) {
     lastSentAt: s?.lastSentAt?.toISOString() ?? null,
   };
 }
-export type NotificationView = ReturnType<typeof notificationView>;
+type NotificationView = ReturnType<typeof notificationView>;

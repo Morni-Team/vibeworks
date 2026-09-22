@@ -31,7 +31,7 @@ export async function currentEntry(userId: string) {
     project: running.project,
   };
 }
-export type CurrentEntry = NonNullable<Awaited<ReturnType<typeof currentEntry>>>;
+type CurrentEntry = NonNullable<Awaited<ReturnType<typeof currentEntry>>>;
 
 /** Summe in Sekunden – abgeschlossene Einträge plus der laufende bis jetzt. */
 export async function sumSeconds(where: { userId?: string; projectId?: string; taskId?: string; from?: Date; to?: Date }): Promise<number> {

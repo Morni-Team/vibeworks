@@ -22,7 +22,7 @@ function bearerOf(header: string | null): string | null {
 }
 
 /** Warum ein Schlüssel nicht angenommen wird – als Code im 401 (#25). Unbekannt und widerrufen sind nicht unterscheidbar: widerrufene Zeilen sind gelöscht. */
-export type ApiTokenProblem = "missing" | "malformed" | "invalid_or_revoked" | "account_inactive" | "paused" | "expired" | "no_projects";
+type ApiTokenProblem = "missing" | "malformed" | "invalid_or_revoked" | "account_inactive" | "paused" | "expired" | "no_projects";
 
 /** Konto zum Bearer-Schlüssel – oder die Ursache, warum nicht. meta: wer gerade anfragt (Prüfspur am Schlüssel). */
 export async function checkApiToken(header: string | null, meta: { ip?: string | null; userAgent?: string | null } = {}) {
@@ -62,7 +62,7 @@ async function authenticateApiToken(header: string | null) {
   const r = await checkApiToken(header);
   return r.auth ?? null;
 }
-export type ApiTokenAuth = NonNullable<Awaited<ReturnType<typeof authenticateApiToken>>>;
+type ApiTokenAuth = NonNullable<Awaited<ReturnType<typeof authenticateApiToken>>>;
 
 export function serializeApiToken(t: ApiToken) {
   return {

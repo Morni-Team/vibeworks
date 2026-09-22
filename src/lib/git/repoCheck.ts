@@ -24,7 +24,7 @@ const REPORT_FILE = "vibeworks-check.json";
 /** Erste Zeile der Vorlage – nur Dateien mit dieser Zeile aktualisiert oder entfernt VibeWorks. */
 const MARKER = REPO_CHECK_WORKFLOW.split("\n")[0];
 
-export type CheckStatus = "waiting" | "running" | "done" | "failed" | "noPermission";
+type CheckStatus = "waiting" | "running" | "done" | "failed" | "noPermission";
 /** Mit diesen Zuständen war die Datei schon einmal erfolgreich eingerichtet. */
 const INSTALLED = new Set(["waiting", "running", "done", "failed"]);
 

@@ -48,7 +48,7 @@ export const oauthDecisionSchema = z.object({
   scope: z.enum(KEY_SCOPES).optional(),
 });
 
-export type DeviceStatus = "pending" | "approved" | "denied" | "claimed";
+type DeviceStatus = "pending" | "approved" | "denied" | "claimed";
 
 export type PollResult =
   | { kind: "error"; error: "authorization_pending" | "slow_down" | "access_denied" | "expired_token" | "invalid_grant" }

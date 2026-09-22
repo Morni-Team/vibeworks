@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.3",
+    date: "2026-09-22",
+    title: "Code-Analyse aufgeräumt",
+    titleEn: "Code analysis tidied up",
+    changes: [
+      {
+        type: "besser",
+        text: "16 Typ-Angaben waren nach außen geöffnet, obwohl sie niemand von außen braucht – jetzt bleiben sie in ihrer Datei. Die Code-Analyse ist dadurch wieder ohne geduldete Ausnahmen sauber",
+        en: "16 type declarations were exposed although nothing outside uses them – they now stay in their own file. The code analysis is clean again without tolerated exceptions",
+      },
+    ],
+  },
+  {
     version: "1.5.2",
     date: "2026-09-22",
     title: "Nacharbeiten aus der Code-Prüfung",

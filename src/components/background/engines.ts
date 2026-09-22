@@ -5,7 +5,7 @@
 
 import { hexToRgb } from "@/lib/theme/color";
 
-export interface EngineOptions {
+interface EngineOptions {
   colors: [string, string, string];
   /** Faktor: 0 = still, 1 = normal */
   speed: number;
@@ -14,7 +14,7 @@ export interface EngineOptions {
   dark: boolean;
 }
 
-export interface Engine {
+interface Engine {
   resize(w: number, h: number): void;
   frame(dt: number, t: number): void;
   pointer?(x: number, y: number): void;

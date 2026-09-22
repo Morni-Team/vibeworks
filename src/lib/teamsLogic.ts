@@ -2,7 +2,7 @@
 // Gehen, Entfernen oder Umstufen noch jemanden hat, der es verwalten darf.
 
 const TEAM_ROLES = ["ADMIN", "MEMBER"] as const;
-export type TeamRole = (typeof TEAM_ROLES)[number];
+type TeamRole = (typeof TEAM_ROLES)[number];
 export type ShareRole = "VIEWER" | "EDITOR";
 
 export const MAX_TEAM_NAME = 60;
