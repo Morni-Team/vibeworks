@@ -49,7 +49,23 @@ Nichts als erledigt melden – weder im Issue noch in VibeWorks noch in der Antw
 - Nur berichten, was Befehle und Werkzeuge wirklich gezeigt haben – kein „sollte grün sein“.
 - Typprüfung, Tests und Build **nach der letzten Änderung** laufen lassen (auch nach Changelog-Korrekturen).
 - Nach Resten suchen: Debug-Ausgaben, TODOs, auskommentierter Code, Testskripte im Repository.
+  Hilfsskripte aus dem eigenen Ablauf (`patch_*.sh`, `pr_description.md` und Ähnliches) gehören nicht in `main`.
 - Offenes oder Unsicheres ausdrücklich nennen statt es zu verschweigen.
+
+### Fallen, die schon einmal durchgerutscht sind
+
+- **Migrationen gegen echtes PostgreSQL abgleichen.** `npm run check:migrations` (pglite) zeigt nur,
+  dass die Dateien laufen – es prüft eine einzige Spalte. Ob Schema und Migrationen wirklich
+  übereinstimmen, sagt allein `prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script`.
+  So blieb ein `@unique` im Schema ohne Index in der Migration (#188).
+- **Keine Browser-Funktionen, die nur über https existieren.** VibeWorks läuft oft über
+  `http://<Heimnetz-IP>` – dort fehlt `crypto.randomUUID`, `navigator.clipboard` und alles andere,
+  was einen „Secure Context“ verlangt. `crypto.getRandomValues` gibt es überall.
+  Oberflächenänderungen deshalb auch einmal über die Netzwerkadresse durchspielen, nicht nur über localhost.
+- **Vorlage und Datei im Repository zusammen ändern.** Wer `src/lib/git/repoCheckWorkflow.ts` anfasst,
+  schreibt `.github/workflows/vibeworks-check.yml` neu – ein Test vergleicht beide.
+- **Erst prüfen, ob ein Befund noch existiert.** Aufgaben aus dem Repo-Check nennen Datei und Zeile
+  eines früheren Laufs; oft ist die Stelle längst geändert. Nachsehen, dann antworten.
 
 Größere Aufgaben laufen als VibeWorks-Workflow (`list_workflows`, `start_workflow`,
 `complete_workflow_step`); den Projektaufbau (`get_project_structure`) nach dem Anlegen,
