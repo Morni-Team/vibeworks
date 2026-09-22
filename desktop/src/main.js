@@ -13,87 +13,15 @@ const POLL_MS = 60_000;
 const TEST = process.env.VIBEWORKS_TEST === "1";
 if (process.env.VIBEWORKS_USER_DATA) app.setPath("userData", process.env.VIBEWORKS_USER_DATA);
 
-// ── Texte ────────────────────────────────────────────────────
-const TEXT = {
-  de: {
-    open: "VibeWorks öffnen",
-    capture: "Schnell erfassen",
-    notifications: "Windows-Benachrichtigungen",
-    keepInTray: "Beim Schließen im Tray bleiben",
-    checkUpdates: "Nach Updates suchen",
-    changeServer: "Server-Adresse ändern …",
-    version: "Version",
-    quit: "Beenden",
-    trayHintTitle: "VibeWorks läuft weiter",
-    trayHint: "Die App bleibt im Tray neben der Uhr – für die Schnellerfassung ({key}) und Benachrichtigungen.",
-    hotkeyTakenTitle: "Tastenkürzel belegt",
-    hotkeyTaken: "{key} benutzt schon ein anderes Programm. Die Schnellerfassung geht weiter über das Tray-Symbol.",
-    updateReady: "VibeWorks {v} ist bereit.",
-    updateDetail: "Jetzt neu starten und installieren? Sonst wird das Update beim nächsten Beenden installiert.",
-    restartNow: "Jetzt neu starten",
-    later: "Später",
-    upToDate: "Du hast die neueste Version ({v}).",
-    updateLoading: "Update {v} wird geladen …",
-    updateFailed: "Update-Prüfung fehlgeschlagen: {msg}",
-    notVibeworks: "Unter dieser Adresse antwortet kein VibeWorks-Server.",
-    unreachable: "Server nicht erreichbar ({msg}).",
-    invalidUrl: "Das ist keine gültige Adresse.",
-    ctrl: "Strg",
-  },
-  en: {
-    open: "Open VibeWorks",
-    capture: "Quick capture",
-    notifications: "Windows notifications",
-    keepInTray: "Keep running in the tray when closed",
-    checkUpdates: "Check for updates",
-    changeServer: "Change server address …",
-    version: "Version",
-    quit: "Quit",
-    trayHintTitle: "VibeWorks keeps running",
-    trayHint: "The app stays in the tray next to the clock – for quick capture ({key}) and notifications.",
-    hotkeyTakenTitle: "Shortcut in use",
-    hotkeyTaken: "{key} is already used by another program. Quick capture still works from the tray icon.",
-    updateReady: "VibeWorks {v} is ready.",
-    updateDetail: "Restart now to install it? Otherwise the update is installed the next time you quit.",
-    restartNow: "Restart now",
-    later: "Later",
-    upToDate: "You have the latest version ({v}).",
-    updateLoading: "Downloading update {v} …",
-    updateFailed: "Update check failed: {msg}",
-    notVibeworks: "There is no VibeWorks server at this address.",
-    unreachable: "Server not reachable ({msg}).",
-    invalidUrl: "That is not a valid address.",
-    ctrl: "Ctrl",
-  },
-};
-let lang = "de";
-const L = (key, vars = {}) => TEXT[lang][key].replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+const { setLang, getLang, L } = require("./i18n");
 
-// ── Einstellungen ────────────────────────────────────────────
-const DEFAULTS = { serverUrl: null, notifications: true, keepInTray: true, hotkey: "CommandOrControl+Alt+V", cursor: null, bounds: null, maximized: false, trayHintShown: false };
-let cfg = { ...DEFAULTS };
-const configFile = () => path.join(app.getPath("userData"), "config.json");
-function loadConfig() {
-  try {
-    cfg = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(configFile(), "utf8")) };
-  } catch {
-    cfg = { ...DEFAULTS };
-  }
-}
-function saveConfig() {
-  try {
-    fs.mkdirSync(path.dirname(configFile()), { recursive: true });
-    fs.writeFileSync(configFile(), JSON.stringify(cfg, null, 2));
-  } catch (err) {
-    console.error("[config]", err);
-  }
-}
+const { getConfig, updateConfig, loadConfig, saveConfig } = require("./config");
 
 const asset = (name) => path.join(__dirname, "..", "assets", name);
-const hotkeyLabel = () => cfg.hotkey.replace("CommandOrControl", L("ctrl"));
+const hotkeyLabel = () => getConfig().hotkey.replace("CommandOrControl", L("ctrl"));
 const isOwn = (url) => {
   try {
-    return Boolean(cfg.serverUrl) && new URL(url).origin === new URL(cfg.serverUrl).origin;
+    return Boolean(getConfig().serverUrl) && new URL(url).origin === new URL(getConfig().serverUrl).origin;
   } catch {
     return false;
   }
@@ -169,18 +97,18 @@ function guard(wc) {
 
 function saveBounds() {
   if (!mainWin || mainWin.isDestroyed()) return;
-  cfg.maximized = mainWin.isMaximized();
-  cfg.bounds = mainWin.getNormalBounds();
+  updateConfig({ maximized: mainWin.isMaximized() });
+  updateConfig({ bounds: mainWin.getNormalBounds() });
   saveConfig();
 }
 
 function showOffline() {
   if (!mainWin || mainWin.isDestroyed()) return;
-  void mainWin.loadFile(path.join(__dirname, "setup.html"), { query: { mode: "offline", lang, server: cfg.serverUrl ?? "" } });
+  void mainWin.loadFile(path.join(__dirname, "setup.html"), { query: { mode: "offline", lang: getLang(), server: getConfig().serverUrl ?? "" } });
 }
 
 function createMain() {
-  const bounds = cfg.bounds ?? { width: 1400, height: 900 };
+  const bounds = getConfig().bounds ?? { width: 1400, height: 900 };
   mainWin = new BrowserWindow({
     ...bounds,
     minWidth: 420,
@@ -194,22 +122,22 @@ function createMain() {
   });
   guard(mainWin.webContents);
   mainWin.once("ready-to-show", () => {
-    if (cfg.maximized) mainWin.maximize();
+    if (getConfig().maximized) mainWin.maximize();
     if (!process.argv.includes("--hidden")) mainWin.show();
   });
   mainWin.on("close", (e) => {
     saveBounds();
     if (quitting) return;
-    if (!cfg.keepInTray) {
+    if (!getConfig().keepInTray) {
       quitting = true;
       app.quit();
       return;
     }
     e.preventDefault();
     mainWin.hide();
-    if (!cfg.trayHintShown) {
+    if (!getConfig().trayHintShown) {
       toast(L("trayHintTitle"), L("trayHint", { key: hotkeyLabel() }));
-      cfg.trayHintShown = true;
+      updateConfig({ trayHintShown: true });
       saveConfig();
     }
   });
@@ -219,11 +147,11 @@ function createMain() {
   });
   // Nach dem Anmelden sofort den Posteingang abholen
   mainWin.webContents.on("did-finish-load", () => void poll());
-  void mainWin.loadURL(cfg.serverUrl);
+  void mainWin.loadURL(getConfig().serverUrl);
 }
 
 function showMain(url) {
-  if (!cfg.serverUrl) return openSetup();
+  if (!getConfig().serverUrl) return openSetup();
   if (!mainWin || mainWin.isDestroyed()) createMain();
   if (url && isOwn(url)) void mainWin.loadURL(url);
   if (mainWin.isMinimized()) mainWin.restore();
@@ -264,13 +192,13 @@ function createCapture() {
       showMain();
     }
   });
-  void captureWin.loadURL(`${cfg.serverUrl}/capture`);
+  void captureWin.loadURL(`${getConfig().serverUrl}/capture`);
 }
 
 function showCapture() {
-  if (!cfg.serverUrl) return openSetup();
+  if (!getConfig().serverUrl) return openSetup();
   if (!captureWin || captureWin.isDestroyed()) createCapture();
-  else if (!captureWin.webContents.getURL().startsWith(`${cfg.serverUrl}/capture`)) void captureWin.loadURL(`${cfg.serverUrl}/capture`);
+  else if (!captureWin.webContents.getURL().startsWith(`${getConfig().serverUrl}/capture`)) void captureWin.loadURL(`${getConfig().serverUrl}/capture`);
   const { x, y, width, height } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
   const [w] = captureWin.getSize();
   captureWin.setPosition(Math.round(x + (width - w) / 2), Math.round(y + height * 0.2));
@@ -298,10 +226,10 @@ function openSetup(mode = "setup") {
     webPreferences: webPrefs(),
   });
   guard(setupWin.webContents);
-  void setupWin.loadFile(path.join(__dirname, "setup.html"), { query: { mode, lang, server: cfg.serverUrl ?? "" } });
+  void setupWin.loadFile(path.join(__dirname, "setup.html"), { query: { mode, lang: getLang(), server: getConfig().serverUrl ?? "" } });
   setupWin.on("closed", () => {
     setupWin = null;
-    if (!cfg.serverUrl && !quitting) app.quit();
+    if (!getConfig().serverUrl && !quitting) app.quit();
   });
 }
 
@@ -315,27 +243,27 @@ function buildTray() {
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: L("open"), click: () => showMain() },
-      { label: L("capture"), accelerator: cfg.hotkey, registerAccelerator: false, click: () => showCapture() },
+      { label: L("capture"), accelerator: getConfig().hotkey, registerAccelerator: false, click: () => showCapture() },
       { type: "separator" },
       {
         label: L("notifications"),
         type: "checkbox",
-        checked: cfg.notifications,
+        checked: getConfig().notifications,
         click: (item) => {
-          cfg.notifications = item.checked;
+          updateConfig({ notifications: item.checked });
           saveConfig();
         },
       },
       {
         label: L("keepInTray"),
         type: "checkbox",
-        checked: cfg.keepInTray,
+        checked: getConfig().keepInTray,
         click: (item) => {
-          cfg.keepInTray = item.checked;
+          updateConfig({ keepInTray: item.checked });
           saveConfig();
         },
       },
-      { label: L("checkUpdates"), enabled: app.isPackaged, click: () => void checkUpdates(true) },
+      { label: L("checkUpdates"), enabled: app.isPackaged, click: () => void checkUpdates(true, app, L, toast) },
       { label: L("changeServer"), click: () => openSetup() },
       { type: "separator" },
       { label: `${L("version")} ${app.getVersion()}`, enabled: false },
@@ -352,7 +280,7 @@ function buildTray() {
 
 function registerHotkey() {
   globalShortcut.unregisterAll();
-  if (!globalShortcut.register(cfg.hotkey, toggleCapture)) toast(L("hotkeyTakenTitle"), L("hotkeyTaken", { key: hotkeyLabel() }));
+  if (!globalShortcut.register(getConfig().hotkey, toggleCapture)) toast(L("hotkeyTakenTitle"), L("hotkeyTaken", { key: hotkeyLabel() }));
 }
 
 // ── Benachrichtigungen ───────────────────────────────────────
@@ -372,11 +300,11 @@ function toast(title, body, url) {
 
 let polling = false;
 async function poll() {
-  if (!cfg.serverUrl || polling) return;
+  if (!getConfig().serverUrl || polling) return;
   polling = true;
   try {
-    const url = new URL("/api/notifications", cfg.serverUrl);
-    if (cfg.cursor) url.searchParams.set("after", cfg.cursor);
+    const url = new URL("/api/notifications", getConfig().serverUrl);
+    if (getConfig().cursor) url.searchParams.set("after", getConfig().cursor);
     const res = await session.defaultSession.fetch(url.toString(), {
       credentials: "include",
       headers: { Accept: "application/json" },
@@ -384,15 +312,15 @@ async function poll() {
     });
     if (!res.ok) return; // nicht angemeldet oder Server gerade weg
     const data = await res.json();
-    if (!cfg.cursor) {
+    if (!getConfig().cursor) {
       // Erster Abruf: ab jetzt zählen, keine alten Meldungen nachholen
-      cfg.cursor = data.now;
+      updateConfig({ cursor: data.now });
       saveConfig();
       return;
     }
     for (const item of data.items ?? []) {
-      if (cfg.notifications) toast(item.title, item.message, item.url);
-      cfg.cursor = item.createdAt;
+      if (getConfig().notifications) toast(item.title, item.message, item.url);
+      updateConfig({ cursor: item.createdAt });
     }
     if (data.items?.length) saveConfig();
   } catch {
@@ -402,48 +330,7 @@ async function poll() {
   }
 }
 
-// ── Updates ──────────────────────────────────────────────────
-let updater = null;
-function setupUpdater() {
-  if (!app.isPackaged) return;
-  updater = require("electron-updater").autoUpdater;
-  updater.autoDownload = true;
-  updater.autoInstallOnAppQuit = true;
-  updater.on("update-downloaded", async (info) => {
-    const { response } = await dialog.showMessageBox({
-      type: "info",
-      title: "VibeWorks",
-      message: L("updateReady", { v: info.version }),
-      detail: L("updateDetail"),
-      buttons: [L("restartNow"), L("later")],
-      defaultId: 0,
-      cancelId: 1,
-    });
-    if (response === 0) {
-      quitting = true;
-      updater.quitAndInstall();
-    }
-  });
-  updater.on("error", (err) => console.error("[update]", err?.message ?? err));
-  void checkUpdates(false);
-  setInterval(() => void checkUpdates(false), 6 * 3_600_000).unref?.();
-}
-
-async function checkUpdates(manual) {
-  if (!updater) return;
-  try {
-    const result = await updater.checkForUpdates();
-    const latest = result?.updateInfo?.version;
-    if (!manual) return;
-    if (!latest || latest === app.getVersion()) {
-      await dialog.showMessageBox({ type: "info", title: "VibeWorks", message: L("upToDate", { v: app.getVersion() }) });
-    } else {
-      toast("VibeWorks", L("updateLoading", { v: latest }));
-    }
-  } catch (err) {
-    if (manual) await dialog.showMessageBox({ type: "warning", title: "VibeWorks", message: L("updateFailed", { msg: err?.message ?? String(err) }) });
-  }
-}
+const { setupUpdater, checkUpdates } = require("./updater");
 
 // ── IPC – nur von den erwarteten Seiten ──────────────────────
 const fromFile = (e) => (e.senderFrame?.url ?? "").startsWith("file:");
@@ -457,9 +344,9 @@ ipcMain.handle("setup:connect", async (e, input) => {
   for (const origin of list) {
     try {
       await checkServer(origin);
-      const changed = cfg.serverUrl !== origin;
-      cfg.serverUrl = origin;
-      if (changed) cfg.cursor = null;
+      const changed = getConfig().serverUrl !== origin;
+      updateConfig({ serverUrl: origin });
+      if (changed) updateConfig({ cursor: null });
       saveConfig();
       if (captureWin && !captureWin.isDestroyed()) captureWin.destroy(), (captureWin = null);
       if (setupWin && !setupWin.isDestroyed() && e.sender === setupWin.webContents) setupWin.close();
@@ -472,7 +359,7 @@ ipcMain.handle("setup:connect", async (e, input) => {
   return { ok: false, error: lastError };
 });
 ipcMain.on("setup:retry", (e) => {
-  if (fromFile(e) && mainWin && !mainWin.isDestroyed()) void mainWin.loadURL(cfg.serverUrl);
+  if (fromFile(e) && mainWin && !mainWin.isDestroyed()) void mainWin.loadURL(getConfig().serverUrl);
 });
 ipcMain.on("setup:change", (e) => {
   if (fromFile(e)) openSetup();
@@ -482,7 +369,7 @@ ipcMain.on("capture:hide", (e) => {
 });
 ipcMain.on("main:open", (e, p) => {
   if (!fromServer(e) || typeof p !== "string" || !p.startsWith("/") || p.startsWith("//")) return;
-  showMain(new URL(p, cfg.serverUrl).toString());
+  showMain(new URL(p, getConfig().serverUrl).toString());
 });
 
 // ── Start ────────────────────────────────────────────────────
@@ -491,7 +378,7 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   app.on("second-instance", () => showMain());
   app.whenReady().then(() => {
-    lang = app.getLocale().toLowerCase().startsWith("de") ? "de" : "en";
+    setLang(app.getLocale().toLowerCase().startsWith("de") ? "de" : "en");
     app.setAppUserModelId(APP_ID);
     Menu.setApplicationMenu(null);
     loadConfig();
@@ -501,11 +388,11 @@ if (!app.requestSingleInstanceLock()) {
     });
     buildTray();
     registerHotkey();
-    setupUpdater();
-    if (cfg.serverUrl) createMain();
+    setupUpdater(app, L, (manual) => checkUpdates(manual, app, L, toast), (val) => { quitting = val; });
+    if (getConfig().serverUrl) createMain();
     else openSetup();
     setInterval(() => void poll(), POLL_MS).unref?.();
-    if (TEST) globalThis.__vw = { toggleCapture, showCapture, showMain, poll, shown, config: () => cfg };
+    if (TEST) globalThis.__vw = { toggleCapture, showCapture, showMain, poll, shown, config: () => getConfig() };
   });
   app.on("window-all-closed", () => {
     // Der Tray hält die App am Leben; ohne Tray (Fehler) beenden
