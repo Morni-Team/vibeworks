@@ -37,7 +37,10 @@ jobs:
           # Die Prüf-Container sehen das Repository – aber nicht das Token in .git/config
           persist-credentials: false
 
+      # Ein abgebrochenes Werkzeug darf nicht wie ein sauberer Lauf aussehen (#149):
+      # jeder Schritt schreibt seinen Fehler in .vw-errors.txt, das landet im Bericht.
       - name: Geheimnisse (Gitleaks)
+        id: gitleaks
         continue-on-error: true
         run: >-
           docker run --rm -v "$PWD:/repo"
@@ -46,24 +49,28 @@ jobs:
           --report-format json --report-path /repo/.vw-gitleaks.json --exit-code 0
 
       - name: Sicherheitslücken (OSV-Scanner)
+        id: osv
         continue-on-error: true
         run: >-
           docker run --rm -v "$PWD:/src" ghcr.io/google/osv-scanner:v2.6.0
           scan source --recursive --format json --output-file /src/.vw-osv.json /src
 
       - name: Fehlermuster (Semgrep)
+        id: semgrep
         continue-on-error: true
         run: >-
           docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.177.0
           semgrep scan --config p/default --json --metrics off --quiet --output /src/.vw-semgrep.json
 
       - name: Offene Stellen (TODO/FIXME)
+        id: todos
         continue-on-error: true
         # Nur Kommentare (// # /* * -- <!--) – nicht jedes Wort „TODO“ im Code
         run: |
           git grep -n -I -E '(//|#|/\*|\*|--|<!--)[[:space:]]*(TODO|FIXME|HACK|XXX)\b' -- ':!*.lock' ':!package-lock.json' ':!.github/workflows/vibeworks-check.yml' > .vw-todos.txt || true
 
       - name: Sprachwerkzeuge (Bandit, ShellCheck, Hadolint, actionlint, fallow)
+        id: languages
         continue-on-error: true
         # Nur was im Repository vorkommt – je Sprache ein kostenloses Werkzeug
         run: |
@@ -94,6 +101,10 @@ jobs:
           fi
 
       - name: Zusammenfassen
+        env:
+          # Ergebnis jedes Prüfschritts – „failure“ heißt: das Werkzeug ist
+          # abgebrochen, sein Teil des Berichts fehlt (#149)
+          VW_OUTCOMES: '{"gitleaks": "${{ steps.gitleaks.outcome }}", "osv": "${{ steps.osv.outcome }}", "semgrep": "${{ steps.semgrep.outcome }}", "todos": "${{ steps.todos.outcome }}", "languages": "${{ steps.languages.outcome }}"}'
         run: |
           python3 - <<'PY'
           import datetime, json, os
@@ -114,7 +125,19 @@ jobs:
               "vulnerabilities": [],
               "findings": [],
               "todos": [],
+              "toolErrors": [],
           }
+
+          # Abgebrochene Schritte melden – sonst sieht ein kaputtes Werkzeug aus
+          # wie ein sauberer Lauf (#149)
+          STEP_LABEL = {"gitleaks": "Gitleaks", "osv": "OSV-Scanner", "semgrep": "Semgrep", "todos": "TODO-Suche", "languages": "Sprachwerkzeuge"}
+          try:
+              outcomes = json.loads(os.environ.get("VW_OUTCOMES") or "{}")
+          except Exception:
+              outcomes = {}
+          for key, outcome in outcomes.items():
+              if outcome in ("failure", "cancelled"):
+                  out["toolErrors"].append({"tool": key, "message": f"{STEP_LABEL.get(key, key)}: Schritt abgebrochen ({outcome}) – die Ergebnisse fehlen"})
 
           leaks = load(".vw-gitleaks.json")
           out["tools"]["gitleaks"] = leaks is not None

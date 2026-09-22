@@ -6,7 +6,7 @@ import { GitError } from "./providers";
 import { normalizeCheckBranch } from "./repoCheckBranch";
 import { artifactJson, deleteRepoFile, dispatchWorkflow, githubTarget, installError, latestWorkflowRun, readRepoFile, writeRepoFile, type GhTarget } from "./githubActions";
 import { REPO_CHECK_ARTIFACT, REPO_CHECK_FILE, REPO_CHECK_PATH, REPO_CHECK_WORKFLOW } from "./repoCheckWorkflow";
-import { checkGotWorse, parseCheckReport, type CheckReport } from "./repoCheckLogic";
+import { checkGotWorse, parseCheckReport, reportIsStale, type CheckReport } from "./repoCheckLogic";
 import { syncCheckTasks } from "./checkTasks";
 
 // Repo-Check über GitHub Actions: VibeWorks legt den Workflow selbst ins
@@ -208,7 +208,13 @@ async function notifyCheckAlert(project: { id: string; name: string; ownerId: st
   }));
 }
 
-type CheckFields = Pick<RepoCache, "webUrl" | "defaultBranch" | "checkStatus" | "checkReport" | "checkRunUrl" | "checkRunAt" | "checkFetchedAt" | "checkError">;
+type CheckFields = Pick<RepoCache, "webUrl" | "defaultBranch" | "checkStatus" | "checkReport" | "checkRunUrl" | "checkRunAt" | "checkFetchedAt" | "checkError" | "commits">;
+
+/** Zuletzt bekannter Commit aus dem Abgleich – für „ist der Bericht noch aktuell?“ (#148) */
+function headCommit(c: CheckFields | null): string | null {
+  const first = Array.isArray(c?.commits) ? (c.commits[0] as { sha?: unknown } | undefined) : undefined;
+  return typeof first?.sha === "string" ? first.sha : null;
+}
 
 /**
  * Nur für angemeldete Projektmitglieder – nie für öffentliche Seiten.
@@ -216,12 +222,15 @@ type CheckFields = Pick<RepoCache, "webUrl" | "defaultBranch" | "checkStatus" | 
  * defaultBranch der Standard des Repositories – beides braucht die Oberfläche.
  */
 export function serializeRepoCheck(enabled: boolean, c: CheckFields | null, autoTasks = "off", checkBranch: unknown = null) {
+  const report = c?.checkReport ? parseCheckReport(c.checkReport) : null;
   return {
     enabled,
     autoTasks,
     branch: normalizeCheckBranch(checkBranch),
     status: (c?.checkStatus ?? null) as CheckStatus | null,
-    report: c?.checkReport ? parseCheckReport(c.checkReport) : null,
+    report,
+    /** Bericht gehört zu einem älteren Commit als dem zuletzt bekannten (#148) */
+    stale: reportIsStale(report?.commit, headCommit(c)),
     runUrl: c?.checkRunUrl ?? null,
     runAt: c?.checkRunAt?.toISOString() ?? null,
     fetchedAt: c?.checkFetchedAt?.toISOString() ?? null,

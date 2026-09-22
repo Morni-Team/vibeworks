@@ -296,6 +296,26 @@ export function RepoCheckPanel({
             (hasToken || !canManage) && <p className="mb-3 text-sm text-muted">{t(`status.${check.status ?? "none"}`)}</p>
           )}
 
+          {/* Der Bericht gehört zu einem älteren Commit (#148) – sonst hält man alte Funde für den aktuellen Stand */}
+          {check.stale && r && (
+            <p className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-400" data-testid="check-stale">
+              <TriangleAlert size={16} className="mt-0.5 shrink-0" /> <span>{t("stale", { commit: r.commit.slice(0, 7) })}</span>
+            </p>
+          )}
+          {/* Abgebrochene Werkzeuge nennen, statt den Lauf als sauber zu zeigen (#149) */}
+          {r && r.toolErrors.length > 0 && (
+            <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-400" data-testid="check-tool-errors">
+              <p className="flex items-start gap-2">
+                <TriangleAlert size={16} className="mt-0.5 shrink-0" /> <span>{t("toolErrors", { n: r.toolErrors.length })}</span>
+              </p>
+              <ul className="mt-1 ml-6 list-disc text-xs">
+                {r.toolErrors.map((e) => (
+                  <li key={e.tool}>{e.message}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {r && (
             <>
               <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">

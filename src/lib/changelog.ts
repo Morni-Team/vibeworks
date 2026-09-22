@@ -28,6 +28,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.5",
+    date: "2026-09-22",
+    title: "Repo-Check sagt, woran man ist",
+    titleEn: "The repo check tells you where you stand",
+    changes: [
+      {
+        type: "fix",
+        text: "Bricht eines der Prüfwerkzeuge ab, stand das nirgends – der Lauf sah aus wie sauber. Jetzt nennt der Bericht jedes abgebrochene Werkzeug beim Namen",
+        en: "When one of the scanning tools broke off, nothing said so – the run looked clean. The report now names every tool that broke off",
+      },
+      {
+        type: "fix",
+        text: "Gehört der Bericht zu einem älteren Commit als dem aktuellen Stand, steht das jetzt dabei. Vorher wirkten alte Funde wie der Stand von heute",
+        en: "If the report belongs to an older commit than the current state, it now says so. Before, old findings looked like today's state",
+      },
+    ],
+  },
+  {
     version: "1.5.4",
     date: "2026-09-22",
     title: "Repo-Check läuft bei jedem Commit",

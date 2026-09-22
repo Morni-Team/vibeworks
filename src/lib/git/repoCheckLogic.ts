@@ -6,6 +6,8 @@ export interface CheckSecret { file: string; line: number | null; rule: string; 
 export interface CheckVuln { package: string; version: string; ecosystem: string; id: string; summary: string; severity: string; source: string }
 export interface CheckFinding { file: string; line: number | null; rule: string; severity: string; message: string }
 export interface CheckTodo { file: string; line: number | null; text: string }
+/** Ein Werkzeug ist gescheitert (#149) – sonst sähe der Lauf sauber aus, obwohl nichts geprüft wurde */
+export interface CheckToolError { tool: string; message: string }
 
 export interface CheckReport {
   commit: string;
@@ -16,6 +18,8 @@ export interface CheckReport {
   vulnerabilities: CheckVuln[];
   findings: CheckFinding[];
   todos: CheckTodo[];
+  /** Werkzeuge, die abgebrochen sind – ihr Teil des Berichts fehlt (#149) */
+  toolErrors: CheckToolError[];
   counts: { secrets: number; vulnerabilities: number; findings: number; todos: number };
 }
 
@@ -58,8 +62,23 @@ export function parseCheckReport(raw: unknown): CheckReport {
     vulnerabilities,
     findings,
     todos,
+    toolErrors: rows(r.toolErrors, 20).map((x) => ({ tool: str(x.tool, 40), message: str(x.message, 300) })).filter((x) => x.tool),
     counts: { secrets: secrets.length, vulnerabilities: vulnerabilities.length, findings: findings.length, todos: todos.length },
   };
+}
+
+/**
+ * Gehört der Bericht noch zum aktuellen Stand? (#148) Beide Angaben müssen
+ * bekannt sein – sonst gilt der Bericht als aktuell, damit ein unbekannter
+ * Commit nicht jeden Bericht entwertet. Verglichen wird auf der Länge der
+ * kürzeren Angabe, denn GitHub kürzt Commit-Kennungen unterschiedlich.
+ */
+export function reportIsStale(reportCommit: string | null | undefined, headCommit: string | null | undefined): boolean {
+  const a = (reportCommit ?? "").toLowerCase();
+  const b = (headCommit ?? "").toLowerCase();
+  if (a.length < 7 || b.length < 7) return false;
+  const n = Math.min(a.length, b.length);
+  return a.slice(0, n) !== b.slice(0, n);
 }
 
 /** Link auf die Stelle im Repository (GitHub). Ohne Commit auf den Standardzweig. */

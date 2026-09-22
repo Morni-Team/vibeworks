@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { blobUrl, checkGotWorse, checkIsUrgent, parseCheckReport } from "./repoCheckLogic";
+import { blobUrl, checkGotWorse, checkIsUrgent, parseCheckReport, reportIsStale } from "./repoCheckLogic";
 import { REPO_CHECK_ARTIFACT, REPO_CHECK_WORKFLOW } from "./repoCheckWorkflow";
 
 describe("Workflow", () => {
@@ -65,5 +65,23 @@ describe("Sprachwerkzeuge (#92)", () => {
     expect(r.tools.semgrep).toBe(true);
     expect(r.tools.extra).toEqual(["bandit", "hadolint"]);
     expect(r.findings).toHaveLength(400);
+  });
+});
+
+describe("Verlässlichkeit des Berichts (#148, #149)", () => {
+  it("meldet abgebrochene Werkzeuge und verwirft Unbrauchbares", () => {
+    const r = parseCheckReport({ toolErrors: [{ tool: "osv", message: "OSV-Scanner: Schritt abgebrochen (failure)" }, { tool: "", message: "ohne Werkzeug" }, { message: "gar nichts" }] });
+    expect(r.toolErrors).toEqual([{ tool: "osv", message: "OSV-Scanner: Schritt abgebrochen (failure)" }]);
+    expect(parseCheckReport({}).toolErrors).toEqual([]);
+  });
+
+  it("erkennt einen Bericht zu einem älteren Commit", () => {
+    expect(reportIsStale("aaaaaaa1111", "bbbbbbb2222")).toBe(true);
+    expect(reportIsStale("aaaaaaa1111", "aaaaaaa1111")).toBe(false);
+    // GitHub kürzt unterschiedlich – auf der gemeinsamen Länge vergleichen
+    expect(reportIsStale("aaaaaaa1111", "AAAAAAA")).toBe(false);
+    // Fehlt eine Seite, gilt der Bericht als aktuell – lieber nichts behaupten
+    expect(reportIsStale("", "bbbbbbb2222")).toBe(false);
+    expect(reportIsStale("aaaaaaa1111", null)).toBe(false);
   });
 });
