@@ -682,3 +682,15 @@ select.field option:checked {
     min-height: 1.75rem;
   }
 }
+
+/*
+ * Kleinstschrift am Handy (#192): 10 px sind unterwegs schwer zu lesen. Auf
+ * Geräten mit grobem Zeiger einen Punkt größer – mehr nicht, sonst sprengen
+ * Abzeichen und Hinweiszeilen ihre Zeilen.
+ */
+@media (pointer: coarse) {
+  .text-\[10px\] {
+    font-size: 0.6875rem;
+    line-height: 1rem;
+  }
+}

@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.2",
+    date: "2026-09-23",
+    title: "Kleinstschrift auf dem Handy lesbar",
+    titleEn: "Tiny text readable on phones",
+    changes: [
+      {
+        type: "besser",
+        text: "Hinweise und Abzeichen in 10 Pixel sind auf Geräten mit Touch jetzt einen Punkt größer. Damit ist keine der vierzehn Hauptseiten mehr auffällig – am PC bleibt alles wie gewohnt",
+        en: "Hints and badges at 10 pixels are now one point larger on touch devices. With that, none of the fourteen main pages stands out any more – on a PC everything stays as it was",
+      },
+    ],
+  },
+  {
     version: "1.6.1",
     date: "2026-09-23",
     title: "„Was ist als Nächstes dran?“ für die KI",
