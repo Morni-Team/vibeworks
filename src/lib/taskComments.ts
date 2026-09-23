@@ -38,7 +38,7 @@ export async function taskComments(task: Pick<Task, "projectId" | "issueNumber">
 }
 
 /** Antwort ins Issue – wer schreibt, steht sichtbar dabei (Person oder KI mit Schlüsselname). */
-export async function postTaskComment(task: Pick<Task, "projectId" | "issueNumber">, author: string, text: string): Promise<{ viaBot: boolean; botInstallUrl: string | null }> {
+export async function postTaskComment(task: Pick<Task, "projectId" | "issueNumber">, author: string, text: string): Promise<{ viaBot: boolean; botLogin: string | null; botInstallUrl: string | null }> {
   if (!task.issueNumber) throw new ApiError(400, tk("tasks", "info.conversation.noIssue"));
   const ctx = await contextFor(task.projectId);
   const body = `**${author}** (über VibeWorks):\n\n${text}\n\n${REPLY_MARKER}`;
@@ -54,5 +54,5 @@ export async function postTaskComment(task: Pick<Task, "projectId" | "issueNumbe
     throw new ApiError(502, err instanceof GitError ? err.message : tk("git", "errors.issueFailed"));
   }
   // Identität transparent machen: ohne Bot schreibt der Kommentar unter dem Konto des Besitzers
-  return { viaBot: ctx.viaBot, botInstallUrl: ctx.botInstallUrl };
+  return { viaBot: ctx.viaBot, botLogin: ctx.botLogin, botInstallUrl: ctx.botInstallUrl };
 }

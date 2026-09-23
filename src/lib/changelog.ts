@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.9",
+    date: "2026-09-23",
+    title: "Antworten zeigen, wer schreibt",
+    titleEn: "Replies show who is writing",
+    changes: [
+      {
+        type: "besser",
+        text: "Nach einer Antwort ins Issue steht jetzt dabei, unter wem sie erscheint – unter dem Bot mit seinem Namen oder unter deinem eigenen GitHub-Konto. Ohne Bot gibt es gleich den Link zum Einrichten",
+        en: "After replying to an issue it now says who it appears as – the bot with its name, or your own GitHub account. Without a bot you get the link to set one up right away",
+      },
+    ],
+  },
+  {
     version: "1.5.8",
     date: "2026-09-23",
     title: "Schlüssel-Umfang wirkt wieder",

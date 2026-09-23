@@ -95,6 +95,9 @@ const de = {
       placeholder: "Antwort ins Issue schreiben … (dein Name steht dabei)",
       send: "Antworten",
       sent: "Antwort steht im Issue.",
+      sentAsBot: "Antwort steht im Issue – geschrieben als {name}.",
+      sentAsMe: "Antwort steht im Issue – geschrieben unter deinem eigenen GitHub-Konto.",
+      botSetup: "Bot einrichten, damit Antworten unter dem Bot erscheinen",
       noIssue: "Diese Aufgabe hat noch kein Issue.",
       noSync: "Für dieses Projekt ist der Issue-Abgleich aus oder es fehlt ein Zugang.",
       identityHint:
@@ -264,6 +267,9 @@ const en: Shape<typeof de> = {
       placeholder: "Write a reply to the issue … (your name is added)",
       send: "Reply",
       sent: "Your reply is in the issue.",
+      sentAsBot: "Your reply is in the issue – written as {name}.",
+      sentAsMe: "Your reply is in the issue – written under your own GitHub account.",
+      botSetup: "Set up the bot so replies appear under the bot",
       noIssue: "This task has no issue yet.",
       noSync: "Issue sync is off for this project or access is missing.",
       identityHint:

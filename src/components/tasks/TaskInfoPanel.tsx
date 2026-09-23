@@ -283,6 +283,8 @@ function Conversation({ taskId, canEdit }: { taskId: string; canEdit: boolean })
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  // Ohne Bot läuft die Antwort unter dem eigenen Konto – Link zum Einrichten (#189)
+  const [botHint, setBotHint] = useState<string | null>(null);
 
   async function load() {
     setBusy(true);
@@ -300,9 +302,11 @@ function Conversation({ taskId, canEdit }: { taskId: string; canEdit: boolean })
     setBusy(true);
     setNote(null);
     try {
-      await api(`/api/tasks/${taskId}/comments`, { body: { text: text.trim() } });
+      const res = await api<{ viaBot: boolean; botLogin: string | null; botInstallUrl: string | null }>(`/api/tasks/${taskId}/comments`, { body: { text: text.trim() } });
       setText("");
-      setNote(t("info.conversation.sent"));
+      // Sichtbar machen, unter wem die Antwort im Issue steht (#189)
+      setNote(res.viaBot ? t("info.conversation.sentAsBot", { name: res.botLogin ?? "Bot" }) : t("info.conversation.sentAsMe"));
+      setBotHint(res.viaBot ? null : res.botInstallUrl);
       setComments((await api<{ comments: IssueCommentView[] }>(`/api/tasks/${taskId}/comments`)).comments);
     } catch (e) {
       setNote(errorMessage(e));
@@ -365,6 +369,11 @@ function Conversation({ taskId, canEdit }: { taskId: string; canEdit: boolean })
         </>
       )}
       {note && <p className="mt-1 text-xs text-muted" role="status">{note}</p>}
+      {botHint && (
+        <p className="mt-1 text-xs text-muted" data-testid="conversation-bot-hint">
+          <a href={botHint} target="_blank" rel="noopener noreferrer" className="underline hover:text-fg">{t("info.conversation.botSetup")}</a>
+        </p>
+      )}
     </section>
   );
 }

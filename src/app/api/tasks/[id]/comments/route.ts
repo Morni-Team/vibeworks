@@ -28,6 +28,7 @@ export const POST = route<Params>(async (req, { params }) => {
   const { text } = await readBody(req, replySchema, { maxBytes: 12_000 });
   limitOrThrow(`issue-reply:${user.id}`, 20, 10 * MINUTE);
   const author = await db.user.findUnique({ where: { id: user.id }, select: { username: true, displayName: true } });
-  await postTaskComment(task, displayNameOf(author ?? user), text);
-  return json({ ok: true });
+  // Wer sichtbar schreibt, gehört in die Antwort (#189): unter dem Bot oder unter dem eigenen Konto
+  const { viaBot, botLogin, botInstallUrl } = await postTaskComment(task, displayNameOf(author ?? user), text);
+  return json({ ok: true, viaBot, botLogin, botInstallUrl });
 });
