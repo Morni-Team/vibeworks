@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { noteUpdateSchema, projectCreateSchema, projectUpdateSchema, safeNext, usernameSchema } from "./validation";
+import { apiTokenCreateSchema, noteUpdateSchema, projectCreateSchema, projectUpdateSchema, safeNext, usernameSchema } from "./validation";
 
 describe("Teil-Updates lassen Fehlendes unangetastet", () => {
   it("Notiz anpinnen löscht den Titel nicht", () => {
@@ -40,5 +40,15 @@ describe("Sonstiges", () => {
     expect(safeNext("/projects/1")).toBe("/projects/1");
     expect(safeNext("//evil.example")).toBe("/");
     expect(safeNext("https://evil.example")).toBe("/");
+  });
+});
+
+describe("API-Schlüssel anlegen (#192)", () => {
+  it("nimmt den gewünschten Umfang an, statt ihn stillschweigend zu verwerfen", () => {
+    expect(apiTokenCreateSchema.parse({ name: "Nur lesen", scope: "read" }).scope).toBe("read");
+    expect(apiTokenCreateSchema.parse({ name: "Aufgaben", scope: "tasks" }).scope).toBe("tasks");
+    // Ohne Angabe bleibt es wie bisher – die Route setzt dann den Standard
+    expect(apiTokenCreateSchema.parse({ name: "Ohne" }).scope).toBeUndefined();
+    expect(() => apiTokenCreateSchema.parse({ name: "Quatsch", scope: "alles" })).toThrow();
   });
 });

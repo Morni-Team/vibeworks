@@ -6,6 +6,7 @@ import { tk } from "./i18n/messages";
 import { CAUSES } from "./grave";
 import { CURRENCIES, INTERVALS } from "./costs";
 import { KEY_LIFETIMES, MAX_KEY_PROJECTS } from "./mcp/projectKeyLogic";
+import { KEY_SCOPES } from "./mcp/keySettings";
 
 export const usernameSchema = z
   .string()
@@ -205,6 +206,8 @@ export const apiTokenCreateSchema = z.object({
   /** Projekt-Schlüssel (#106): nur diese Projekte – fehlt die Liste, gilt der Schlüssel für alle */
   projects: z.array(z.string().min(1).max(40)).min(1).max(MAX_KEY_PROJECTS).optional(),
   lifetime: z.enum(KEY_LIFETIMES).optional(),
+  /** Umfang gleich beim Anlegen (#192): sonst galt still „alles“, auch wenn weniger angefragt war */
+  scope: z.enum(KEY_SCOPES).optional(),
 });
 
 // ── Benachrichtigungen ──────────────────────────────────────

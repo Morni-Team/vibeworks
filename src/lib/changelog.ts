@@ -28,6 +28,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.8",
+    date: "2026-09-23",
+    title: "Schlüssel-Umfang wirkt wieder",
+    titleEn: "Key scope takes effect again",
+    changes: [
+      {
+        type: "fix",
+        text: "Ein neuer Schlüssel bekam immer „Alles“ – auch wenn beim Anlegen ausdrücklich weniger verlangt wurde. Der gewünschte Umfang wird jetzt gespeichert, und er lässt sich direkt im Formular wählen",
+        en: "A new key always got “Everything” – even when less was explicitly requested when creating it. The requested scope is now stored, and it can be picked right in the form",
+        link: "/account#mcp",
+      },
+      {
+        type: "besser",
+        text: "Das spart der KI auch Text: Mit „Nur lesen“ bekommt sie 26 statt 47 Werkzeuge beschrieben – rund 3.400 statt 7.100 Tokens, bevor sie überhaupt etwas tut",
+        en: "That also saves the AI text: with “read only” it gets 26 tools described instead of 47 – roughly 3,400 instead of 7,100 tokens before it does anything",
+        link: "/account#mcp",
+      },
+    ],
+  },
+  {
     version: "1.5.7",
     date: "2026-09-23",
     title: "Node-Editor auf dem Handy",

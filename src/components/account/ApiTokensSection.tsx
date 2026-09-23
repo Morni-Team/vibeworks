@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bot, Check, CircleAlert, Copy, FolderLock, History, KeyRound, LifeBuoy, Pause, Play, Plus, ScrollText, ShieldAlert, ShieldCheck } from "lucide-react";
 import { KEY_LIFETIMES, MAX_KEY_PROJECTS, type KeyLifetime } from "@/lib/mcp/projectKeyLogic";
+import { KEY_SCOPES, type KeyScope } from "@/lib/mcp/keySettings";
 import { Toggle } from "@/components/theme/controls";
 import { FormError } from "@/components/ui/FormError";
 import { api, errorMessage } from "@/lib/client/api";
@@ -56,6 +57,8 @@ export function ApiTokensSection({
   const [calls, setCalls] = useState<CallItem[] | null>(null);
   // Projekt-Schlüssel (#106)
   const [scoped, setScoped] = useState(false);
+  // Voreinstellung wie bisher: alle Werkzeuge – aber sichtbar und änderbar (#192)
+  const [scope, setScope] = useState<KeyScope>("all");
   const [grantable, setGrantable] = useState<Array<{ id: string; name: string; own: boolean; owner: string }> | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
   const [lifetime, setLifetime] = useState<KeyLifetime>("never");
@@ -98,7 +101,7 @@ export function ApiTokensSection({
     setBusy(true);
     setError(null);
     try {
-      const body = { name, ...(scoped ? { projects: picked } : {}), ...(lifetime !== "never" ? { lifetime } : {}) };
+      const body = { name, scope, ...(scoped ? { projects: picked } : {}), ...(lifetime !== "never" ? { lifetime } : {}) };
       const res = await api<{ token: string; item: ApiTokenItem }>("/api/account/api-tokens", { method: "POST", body });
       setItems((list) => [...list, res.item]);
       setFresh({ token: res.token, name: res.item.name });
@@ -264,6 +267,17 @@ export function ApiTokensSection({
           <div className="min-w-0">
             <label className="label" htmlFor="api-token-name">{t("name")}</label>
             <input id="api-token-name" className="field w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("namePlaceholder")} maxLength={60} />
+          </div>
+          <div className="min-w-0">
+            {/* Umfang gleich beim Anlegen wählen (#192) – vorher bekam jeder neue Schlüssel „Alles“ */}
+            <label className="label" htmlFor="api-token-scope-new">{t("keySettings.scopeLabel")}</label>
+            <select id="api-token-scope-new" className="field w-full" value={scope} onChange={(e) => setScope(e.target.value as KeyScope)} data-testid="api-token-scope-new">
+              {KEY_SCOPES.map((s) => (
+                <option key={s} value={s}>
+                  {t(`keySettings.scope.${s}`)}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="min-w-0">
             <label className="label" htmlFor="api-token-lifetime">{t("projectKey.lifetime")}</label>
