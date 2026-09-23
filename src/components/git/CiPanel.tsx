@@ -176,8 +176,24 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
   const [layout, setLayout] = useState<Record<string, { x: number; y: number }>>({});
   const dragPan = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  // Zwei Finger zum Zoomen (#192): wie im Codennetz über native Listener, denn
+  // React-Handler kommen zu spät, um das Zoomen der ganzen Seite zu verhindern.
+  const pinch = useRef<{ dist: number; zoom: number; px: number; py: number; mx: number; my: number } | null>(null);
   const showCanvas = canvasView && draft && draft.steps.length > 0;
-  const nodePos = (i: number, id: string) => layout[id] ?? { x: 24 + i * 190, y: 96 };
+  // Auf schmalen Bildschirmen stehen die Blöcke untereinander (#192): nebeneinander
+  // passen auf einem Handy kaum zwei, und alles wird winzig. Im Vollbild ist Platz
+  // für die gewohnte Kette. Selbst verschobene Blöcke behalten ihren Platz.
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const apply = () => setNarrow(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  // Auch im Vollbild: ein hochkantes Handy bleibt schmal, untereinander passt mehr
+  const stacked = narrow;
+  const nodePos = (i: number, id: string) => layout[id] ?? (stacked ? { x: 20, y: 110 + i * 96 } : { x: 24 + i * 190, y: 96 });
   // Verbinden wie in n8n: Ausgang (Port) antippen, dann Ziel-Node antippen.
   // Die Kette bleibt dabei intakt – „verbinden“ heißt hier: den gewählten Step
   // direkt nach dem Ausgangs-Node einsortieren (GitHub führt strikt der Reihe aus).
@@ -264,6 +280,91 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
     dragPan.current = null;
     setDragNode(null);
   };
+
+  /**
+   * Alles ins Bild holen (#192): Zoom und Verschiebung so setzen, dass jeder
+   * Node sichtbar ist. Auf dem Handy passen sonst schon zwei Blöcke nicht
+   * nebeneinander. Die selbst gewählte Anordnung bleibt dabei erhalten.
+   */
+  const fitView = () => {
+    const stage = stageRef.current;
+    if (!stage || !draft?.steps.length) return;
+    const rect = stage.getBoundingClientRect();
+    if (rect.width < 40 || rect.height < 40) return;
+    const NODE_W = 170;
+    const NODE_H = 64;
+    const points = draft.steps.map((s, i) => nodePos(i, s.id));
+    // Links steht der Start-Node, unten die Beschriftung – dafür etwas Luft
+    // Links (bzw. oben) steht der Start-Block – dafür Platz einrechnen
+    const minX = Math.min(...points.map((p) => p.x)) - (stacked ? 20 : 230);
+    const minY = Math.min(...points.map((p) => p.y)) - (stacked ? 100 : 40);
+    const maxX = Math.max(...points.map((p) => p.x)) + NODE_W + 20;
+    const maxY = Math.max(...points.map((p) => p.y)) + NODE_H + 20;
+    const k = Math.min(1.4, Math.max(0.3, Math.min(rect.width / (maxX - minX), rect.height / (maxY - minY))));
+    setZoom(k);
+    setPan({ x: (rect.width - (maxX - minX) * k) / 2 - minX * k, y: (rect.height - (maxY - minY) * k) / 2 - minY * k });
+  };
+  // Beim Öffnen des Vollbilds einmal einpassen – erst nach dem Umschalten,
+  // sonst wird noch mit der alten Größe gerechnet
+  const fitRef = useRef(fitView);
+  fitRef.current = fitView;
+  useEffect(() => {
+    if (!full) return;
+    const timer = setTimeout(() => fitRef.current(), 120);
+    return () => clearTimeout(timer);
+  }, [full]);
+
+  // Pinch-Zoom auf dem Handy (#192): zwei Finger vergrößern die Ansicht um den
+  // Punkt zwischen ihnen. Native Listener mit preventDefault, sonst zoomt
+  // Android die ganze Seite statt der Node-Ansicht.
+  const zoomRef = useRef({ zoom, pan });
+  zoomRef.current = { zoom, pan };
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !showCanvas) return;
+    const middle = (t: TouchList) => {
+      const r = stage.getBoundingClientRect();
+      return {
+        mx: (t[0].clientX + t[1].clientX) / 2 - r.left,
+        my: (t[0].clientY + t[1].clientY) / 2 - r.top,
+        dist: Math.max(1, Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)),
+      };
+    };
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length < 2) return;
+      e.preventDefault();
+      // Ein begonnenes Ziehen abbrechen – zwei Finger heißt zoomen
+      dragPan.current = null;
+      setDragNode(null);
+      const { mx, my, dist } = middle(e.touches);
+      const cur = zoomRef.current;
+      pinch.current = { dist, zoom: cur.zoom, px: cur.pan.x, py: cur.pan.y, mx, my };
+    };
+    const onMove = (e: TouchEvent) => {
+      const base = pinch.current;
+      if (!base || e.touches.length !== 2) return;
+      e.preventDefault();
+      const { dist } = middle(e.touches);
+      const next = Math.min(2, Math.max(0.4, base.zoom * (dist / base.dist)));
+      const k = next / base.zoom;
+      // Der Punkt zwischen den Fingern bleibt stehen, die Ansicht wächst darum herum
+      setZoom(next);
+      setPan({ x: base.mx - (base.mx - base.px) * k, y: base.my - (base.my - base.py) * k });
+    };
+    const onEnd = () => {
+      pinch.current = null;
+    };
+    stage.addEventListener("touchstart", onStart, { passive: false });
+    stage.addEventListener("touchmove", onMove, { passive: false });
+    stage.addEventListener("touchend", onEnd);
+    stage.addEventListener("touchcancel", onEnd);
+    return () => {
+      stage.removeEventListener("touchstart", onStart);
+      stage.removeEventListener("touchmove", onMove);
+      stage.removeEventListener("touchend", onEnd);
+      stage.removeEventListener("touchcancel", onEnd);
+    };
+  }, [showCanvas]);
   // Als Funktion, nicht als Komponente – sonst hängt React die Knöpfe bei jedem Rendern neu ein
   const inserter = (at: number) =>
     canEdit && draft && draft.steps.length < MAX_STEPS ? (
@@ -373,31 +474,27 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
           {showCanvas && inStage(
             <div ref={stageRef} className={cn("relative overflow-hidden rounded-2xl border bg-bg/40", full && "fixed inset-0 z-50 flex h-dvh flex-col overflow-hidden rounded-none border-0 p-3 sm:p-4")} data-testid="ci-canvas">
               {/* Werkzeugleiste: Ansicht umschalten, zoomen, Vollbild, einpassen */}
-              <div className="absolute right-2 top-2 z-10 flex max-w-[60%] flex-wrap justify-end gap-1">
-                <button type="button" className="btn btn-ghost btn-icon h-9 w-9 bg-bg" onClick={() => { setFull(false); setCanvasView(false); }} aria-label={t("canvasOff")} title={t("canvasOff")} data-testid="ci-canvas-off">
+              <div className="absolute right-2 top-2 z-10 flex max-w-[75%] flex-wrap justify-end gap-1">
+                <button type="button" className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9" onClick={() => { setFull(false); setCanvasView(false); }} aria-label={t("canvasOff")} title={t("canvasOff")} data-testid="ci-canvas-off">
                   <List size={16} />
                 </button>
-                <button type="button" className="btn btn-ghost btn-icon h-9 w-9 bg-bg" onClick={() => setZoom((z) => Math.min(1.6, z + 0.2))} aria-label={t("zoomIn")} title={t("zoomIn")} data-testid="ci-zoom-in">
+                <button type="button" className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9" onClick={() => setZoom((z) => Math.min(1.6, z + 0.2))} aria-label={t("zoomIn")} title={t("zoomIn")} data-testid="ci-zoom-in">
                   <ZoomIn size={16} />
                 </button>
-                <button type="button" className="btn btn-ghost btn-icon h-9 w-9 bg-bg" onClick={() => setZoom((z) => Math.max(0.4, z - 0.2))} aria-label={t("zoomOut")} title={t("zoomOut")} data-testid="ci-zoom-out">
+                <button type="button" className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9" onClick={() => setZoom((z) => Math.max(0.4, z - 0.2))} aria-label={t("zoomOut")} title={t("zoomOut")} data-testid="ci-zoom-out">
                   <Minus size={16} />
                 </button>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-icon h-9 w-9 bg-bg"
-                  onClick={() => {
-                    setZoom(1);
-                    setPan({ x: 0, y: 0 });
-                    setLayout({});
-                  }}
+                  className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9"
+                  onClick={fitView}
                   aria-label={t("fit")}
                   title={t("fit")}
                   data-testid="ci-fit"
                 >
                   <Maximize2 size={16} />
                 </button>
-                <button type="button" className="btn btn-ghost btn-icon h-9 w-9 bg-bg" onClick={() => setFull((v) => !v)} aria-label={full ? t("exitFullscreen") : t("fullscreen")} title={full ? t("exitFullscreen") : t("fullscreen")} data-testid="ci-fullscreen">
+                <button type="button" className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9" onClick={() => setFull((v) => !v)} aria-label={full ? t("exitFullscreen") : t("fullscreen")} title={full ? t("exitFullscreen") : t("fullscreen")} data-testid="ci-fullscreen">
                   {full ? <Minimize2 size={16} /> : <Expand size={16} />}
                 </button>
                 {full && canEdit && (
@@ -420,8 +517,9 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
                   {/* Start-Node (Main): wo die Pipeline beginnt – Auslöser stehen darunter */}
                   {mainId && (() => {
                     const p = nodePos(0, mainId);
-                    const mx = Math.max(0, p.x - 210);
-                    const my = p.y + 30 - 24;
+                    // Untereinander steht der Start darüber, sonst links daneben
+                    const mx = stacked ? p.x + 20 : Math.max(0, p.x - 210);
+                    const my = stacked ? Math.max(0, p.y - 96) : p.y + 30 - 24;
                     return (
                       <div className="absolute w-[130px] rounded-xl border-2 border-dashed border-accent/50 bg-accent/5 p-2 text-center shadow-lg" style={{ left: mx, top: my }} data-testid="ci-canvas-main" title={t("mainNodeHint")}>
                         <Workflow size={16} className="mx-auto text-accent-ink" />
@@ -438,12 +536,14 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
                       if (iFrom < 0 || iTo < 0) return null;
                       const a = nodePos(iFrom, e.from);
                       const b = nodePos(iTo, e.to);
-                      const x1 = a.x + 170,
-                        y1 = a.y + 30,
-                        x2 = b.x,
-                        y2 = b.y + 30;
+                      // Untereinander: von unten nach oben verbinden, sonst von rechts nach links
+                      const x1 = stacked ? a.x + 85 : a.x + 170,
+                        y1 = stacked ? a.y + 62 : a.y + 30,
+                        x2 = stacked ? b.x + 85 : b.x,
+                        y2 = stacked ? b.y : b.y + 30;
+                      const curve = stacked ? `M ${x1} ${y1} C ${x1} ${y1 + 24}, ${x2} ${y2 - 24}, ${x2} ${y2}` : `M ${x1} ${y1} C ${x1 + 40} ${y1}, ${x2 - 40} ${y2}, ${x2} ${y2}`;
                       const state = nodes[e.to] ?? "idle";
-                      return <path key={`${e.from}-${e.to}`} d={`M ${x1} ${y1} C ${x1 + 40} ${y1}, ${x2 - 40} ${y2}, ${x2} ${y2}`} fill="none" stroke={state === "running" ? "var(--vw-accent, #a78bfa)" : "currentColor"} strokeOpacity={state === "running" ? 0.9 : 0.25} strokeWidth={state === "running" ? 2.5 : 1.5} className="text-fg" data-testid="ci-edge" data-state={state} />;
+                      return <path key={`${e.from}-${e.to}`} d={curve} fill="none" stroke={state === "running" ? "var(--vw-accent, #a78bfa)" : "currentColor"} strokeOpacity={state === "running" ? 0.9 : 0.25} strokeWidth={state === "running" ? 2.5 : 1.5} className="text-fg" data-testid="ci-edge" data-state={state} />;
                     })}
                   </svg>
                   {draft.steps.map((s, i) => {
@@ -456,7 +556,8 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
                       <div
                         key={s.id}
                         className={cn(
-                          "absolute w-[170px] cursor-grab rounded-xl border bg-bg p-2 shadow-lg active:cursor-grabbing",
+                          // touch-none: sonst wertet Android das Ziehen am Node als Wischen und bricht es ab (#192)
+                          "absolute w-[170px] cursor-grab touch-none rounded-xl border bg-bg p-2 shadow-lg active:cursor-grabbing",
                           state === "running" && "border-accent/70 shadow-accent/20",
                           state === "failure" && "border-red-500/60",
                           state === "success" && "border-emerald-500/50",
@@ -480,7 +581,8 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
                           {canEdit && (
                             <button
                               type="button"
-                              className="ml-auto shrink-0 rounded p-0.5 text-muted hover:bg-fg/10 hover:text-fg"
+                              // 28px statt 16: mit dem Finger sonst kaum zu treffen (#192)
+                              className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted hover:bg-fg/10 hover:text-fg"
                               onPointerDown={(e) => e.stopPropagation()}
                               onPointerUp={(e) => {
                                 e.stopPropagation();
@@ -501,7 +603,8 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
                           <button
                             type="button"
                             className={cn(
-                              "absolute -right-2 top-1/2 z-10 h-6 w-6 -translate-y-1/2 rounded-full border-2 bg-bg shadow",
+                              // 28px: genauso groß wie der Menü-Knopf, damit beide mit dem Finger sicher treffbar sind (#192)
+                              "absolute -right-3 top-1/2 z-10 h-7 w-7 -translate-y-1/2 rounded-full border-2 bg-bg shadow",
                               linkFrom === s.id ? "border-accent bg-accent/20" : "border-fg/30 hover:border-accent",
                             )}
                             onPointerDown={(e) => e.stopPropagation()}

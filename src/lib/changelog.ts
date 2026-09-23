@@ -28,6 +28,34 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.5.7",
+    date: "2026-09-23",
+    title: "Node-Editor auf dem Handy",
+    titleEn: "Node editor on the phone",
+    changes: [
+      {
+        type: "neu",
+        text: "Auf schmalen Bildschirmen stehen die Blöcke jetzt untereinander statt nebeneinander – so ist die ganze Kette lesbar, statt dass zwei Blöcke die Breite sprengen",
+        en: "On narrow screens the blocks now sit below each other instead of side by side – the whole chain stays readable instead of two blocks blowing up the width",
+      },
+      {
+        type: "neu",
+        text: "Zwei Finger zum Zoomen in der Node-Ansicht, wie man es vom Handy kennt",
+        en: "Two fingers to zoom in the node view, the way you know it from your phone",
+      },
+      {
+        type: "besser",
+        text: "„Alles ins Bild“ passt die Ansicht jetzt wirklich an und holt jeden Block auf den Schirm – auch beim Öffnen des Vollbilds. Die eigene Anordnung bleibt dabei erhalten",
+        en: "“Fit to view” now really adjusts the view and brings every block on screen – also when opening full screen. Your own arrangement is kept",
+      },
+      {
+        type: "fix",
+        text: "Der kleine Knopf am Block war mit 16 Pixeln kaum zu treffen; er und der Verbindungspunkt sind jetzt 28 Pixel groß. Die Werkzeugleiste bricht auf dem Handy nicht mehr um",
+        en: "The small button on a block was barely tappable at 16 pixels; it and the connection dot are now 28 pixels. The toolbar no longer wraps on phones",
+      },
+    ],
+  },
+  {
     version: "1.5.6",
     date: "2026-09-22",
     title: "Abhängigkeiten aufgefrischt",
