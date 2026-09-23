@@ -52,6 +52,7 @@ import { fillPrompt } from "@/lib/prompts";
 import { protectedChanges } from "@/lib/protect";
 import { currentEntry, stopRunning } from "@/lib/timeServer";
 import { MAX_FOCUS } from "@/lib/today";
+import { nextSummary, rankNextSteps, taskReason, type NextStep } from "./nextStepsLogic";
 import { postTaskComment, taskComments } from "@/lib/taskComments";
 import { limitOrThrow } from "@/lib/security/rateLimit";
 import { missingPaths, readStructure, structureInputSchema } from "@/lib/projectStructureLogic";
@@ -1351,6 +1352,15 @@ export const MCP_TOOLS: ToolDef<McpContext>[] = [
     },
   },
   {
+    name: "whats_next",
+    title: "What's next",
+    description:
+      "Start here. One short, ranked list of what needs doing now – urgent findings first (secrets, vulnerabilities, site down, red CI, git errors), then tasks the user created, overdue before due today. Each entry names the tool to continue with. Saves calling list_problems, list_tasks and get_today separately.",
+    inputSchema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 30, description: "How many entries at most (default 12)" } }, additionalProperties: false },
+    annotations: { readOnlyHint: true },
+    run: async (args, { userId, locale }) => loadNextSteps(userId, locale, typeof args.limit === "number" ? args.limit : 12),
+  },
+  {
     name: "list_problems",
     title: "List problems",
     description:
@@ -1447,6 +1457,51 @@ function repoCheckSummary(cache: RepoCache | null, locale: Locale) {
     vulnerabilities: (r?.vulnerabilities ?? []).slice(0, 15).map((v) => ({ package: v.package, version: v.version, id: v.id, severity: v.severity, summary: v.summary })),
     findings: (r?.findings ?? []).slice(0, 10).map((x) => ({ file: x.file, line: x.line, rule: x.rule, severity: x.severity, message: x.message })),
   };
+}
+
+/**
+ * „Was ist als Nächstes dran?“ (#192): dieselben Quellen wie list_problems,
+ * aber als kurze, sortierte Liste mit dem nächsten Werkzeug je Punkt. Dazu die
+ * Aufgaben, die ein Mensch angelegt hat – nach denen fragt der Nutzer zuerst.
+ */
+async function loadNextSteps(userId: string, locale: Locale, limit: number) {
+  const today = dayKey(new Date());
+  const problems = await loadProblems(userId, locale);
+  const steps: NextStep[] = [];
+  for (const x of problems.repoCheckAlerts) {
+    if (x.secrets > 0) steps.push({ reason: "secrets", what: `Repo check found ${x.secrets} possible secret(s)`, project: x.project, projectId: x.id, next: "get_repo_status" });
+    if (x.vulnerabilities > 0) steps.push({ reason: "vulnerability", what: `Repo check found ${x.vulnerabilities} vulnerability/ies`, project: x.project, projectId: x.id, next: "get_repo_status" });
+  }
+  for (const x of problems.sitesDown) steps.push({ reason: "siteDown", what: `Live site is down${x.error ? `: ${x.error}` : ""}`, project: x.project, projectId: x.id, next: "get_project" });
+  for (const x of problems.redCi) steps.push({ reason: "redCi", what: `CI is red (${x.runs.map((r) => r.name).slice(0, 3).join(", ") || "run failed"})`, project: x.project, projectId: x.id, next: "get_ci" });
+  for (const x of problems.gitErrors) steps.push({ reason: "gitError", what: `Git sync failed: ${x.error}`, project: x.project, projectId: x.id, next: "get_repo_status" });
+  for (const x of problems.appErrors.slice(0, 5)) steps.push({ reason: "appError", what: `Open error (${x.count}×): ${x.message}`.slice(0, 160), project: x.project, projectId: x.projectId, next: "list_errors" });
+  for (const x of problems.vulnerableDependencies) steps.push({ reason: "depsVulnerable", what: `Dependencies with advisories: ${x.packages.map((p) => p.name).slice(0, 4).join(", ")}`, project: x.project, projectId: x.id, next: "get_repo_status" });
+
+  // Aufgaben: offene mit Termin, in Arbeit, blockiert oder wichtig
+  const tasks = await db.task.findMany({
+    where: { AND: [{ project: OPEN_PROJECT(userId) }, await aiTaskFilter(userId)], status: { not: "DONE" } },
+    select: { id: true, title: true, status: true, dueDate: true, priority: true, createdVia: true, createdByName: true, assignee: true, project: { select: { id: true, name: true } } },
+    orderBy: [{ dueDate: "asc" }, { priority: "desc" }],
+    take: 200,
+  });
+  for (const t of tasks) {
+    const reason = taskReason({ status: t.status, dueDate: t.dueDate ? dayKey(t.dueDate) : null, priority: t.priority }, today);
+    if (!reason) continue;
+    const wer = t.createdVia === "web" && t.createdByName ? ` – from ${t.createdByName}` : "";
+    steps.push({
+      reason,
+      what: `${t.title}${t.dueDate ? ` (due ${dayKey(t.dueDate)})` : ""}${t.assignee ? `, on ${t.assignee}` : ""}${wer}`.slice(0, 160),
+      project: t.project.name,
+      projectId: t.project.id,
+      task: t.id,
+      next: "update_task",
+      fromUser: t.createdVia === "web",
+    });
+  }
+
+  const ranked = rankNextSteps(steps, limit);
+  return { today, summary: nextSummary(ranked), items: ranked, hint: ranked.length ? "Work top-down; set the task to DOING with your name before you start." : "Nothing urgent – ask the user what they want next." };
 }
 
 async function loadProblems(userId: string, locale: Locale) {

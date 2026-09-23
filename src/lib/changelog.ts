@@ -28,6 +28,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.1",
+    date: "2026-09-23",
+    title: "„Was ist als Nächstes dran?“ für die KI",
+    titleEn: "“What's next?” for the AI",
+    changes: [
+      {
+        type: "neu",
+        text: "Neues Werkzeug für verbundene KI-Programme: eine kurze, sortierte Liste dessen, was jetzt ansteht – Dringendes zuerst, danach die Aufgaben, die du selbst angelegt hast. Jeder Punkt nennt gleich das Werkzeug, mit dem es weitergeht",
+        en: "New tool for connected AI programs: a short, ranked list of what needs doing now – urgent things first, then the tasks you created yourself. Each entry names the tool to continue with",
+      },
+      {
+        type: "besser",
+        text: "Damit muss eine KI nicht mehr mehrere Abfragen zusammensuchen und selbst raten, was wichtig ist – das spart Text und Fehlgriffe",
+        en: "This means an AI no longer has to piece several queries together and guess what matters – saving text and wrong turns",
+      },
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-09-23",
     title: "Auf dem Handy besser zu treffen",
