@@ -17,7 +17,7 @@ const de = {
   invalidValue: "Ungültiger Wert: {field}",
   internal: "Interner Fehler",
   rateLimited: plural("Zu viele Versuche. Bitte in {n} Minute erneut versuchen.", "Zu viele Versuche. Bitte in {n} Minuten erneut versuchen."),
-  demoReadOnly: "Das ist eine Demo – hier lässt sich nichts ändern. Installiere VibeWorks selbst, um alles auszuprobieren.",
+  demoReadOnly: "Das ist eine Demo – hier lässt sich nichts ändern. Leg dir ein eigenes Konto an, dann kannst du alles: anlegen, bearbeiten, verknüpfen.",
   betaReadOnly: "Beta-Ansicht: hier lässt sich nichts ändern. Beende sie mit dem roten ✕ oben.",
 };
 
@@ -34,7 +34,7 @@ const en: Shape<typeof de> = {
   invalidValue: "Invalid value: {field}",
   internal: "Internal error",
   rateLimited: plural("Too many attempts. Please try again in {n} minute.", "Too many attempts. Please try again in {n} minutes."),
-  demoReadOnly: "This is a demo – nothing can be changed here. Install VibeWorks yourself to try everything.",
+  demoReadOnly: "This is a demo – nothing can be changed here. Create your own account and everything opens up: create, edit, connect.",
   betaReadOnly: "Beta view: nothing can be changed here. Exit it with the red ✕ at the top.",
 };
 

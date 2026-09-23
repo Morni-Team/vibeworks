@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.4",
+    date: "2026-09-23",
+    title: "Demo lädt zum eigenen Konto ein",
+    titleEn: "Demo invites you to your own account",
+    changes: [
+      {
+        type: "besser",
+        text: "Wer ohne Konto reinschaut, sieht jetzt gleich den Weg zum eigenen Zugang: „Eigenes Konto anlegen“ steht oben in der Leiste, und wenn etwas gesperrt ist, sagt die Meldung, dass mit eigenem Konto alles geht – statt nur auf die Installation zu verweisen",
+        en: "Anyone looking around without an account now sees the way to their own access: “Create your own account” sits in the top bar, and when something is locked the message says everything works with your own account – instead of only pointing at the installation",
+      },
+    ],
+  },
+  {
     version: "1.6.3",
     date: "2026-09-23",
     title: "Repo-Check: eigene Ausnahmen je Projekt",

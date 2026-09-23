@@ -5,6 +5,7 @@ import type { Shape } from "../types";
 const de = {
   banner: {
     text: "Demo – nur zum Ansehen. Änderungen sind gesperrt, jede Nacht beginnt alles von vorn.",
+    signUp: "Eigenes Konto anlegen",
     install: "Selbst installieren",
   },
   login: {
@@ -21,6 +22,7 @@ const de = {
 const en: Shape<typeof de> = {
   banner: {
     text: "Demo – view only. Changes are locked, and everything starts over every night.",
+    signUp: "Create your own account",
     install: "Install it yourself",
   },
   login: {
