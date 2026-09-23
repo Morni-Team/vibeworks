@@ -66,6 +66,10 @@ Nichts als erledigt melden – weder im Issue noch in VibeWorks noch in der Antw
   schreibt `.github/workflows/vibeworks-check.yml` neu – ein Test vergleicht beide.
 - **Erst prüfen, ob ein Befund noch existiert.** Aufgaben aus dem Repo-Check nennen Datei und Zeile
   eines früheren Laufs; oft ist die Stelle längst geändert. Nachsehen, dann antworten.
+- **Handy-Tests brauchen echte Touch-Ereignisse.** Selbst erzeugte `PointerEvent`s scheitern an
+  `setPointerCapture` und melden Fehler, die es nicht gibt. Richtig geht es über CDP
+  (`Input.dispatchTouchEvent`) mit einem Geräteprofil wie `devices["Pixel 7"]`.
+  Ebenso gilt: Elemente innerhalb von `overflow-x-auto` sind kein Seitenüberlauf.
 
 Größere Aufgaben laufen als VibeWorks-Workflow (`list_workflows`, `start_workflow`,
 `complete_workflow_step`); den Projektaufbau (`get_project_structure`) nach dem Anlegen,
