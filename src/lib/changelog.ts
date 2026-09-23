@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.0",
+    date: "2026-09-23",
+    title: "Auf dem Handy besser zu treffen",
+    titleEn: "Easier to hit on a phone",
+    changes: [
+      {
+        type: "besser",
+        text: "Ankreuzfelder und kleine Filter-Knöpfe sind auf Geräten mit Touch jetzt groß genug für den Finger. Mit der Maus bleibt alles wie gewohnt",
+        en: "Checkboxes and small filter buttons are now big enough for a finger on touch devices. With a mouse everything stays as it was",
+      },
+    ],
+  },
+  {
     version: "1.5.9",
     date: "2026-09-23",
     title: "Antworten zeigen, wer schreibt",

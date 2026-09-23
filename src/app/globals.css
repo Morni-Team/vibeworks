@@ -658,3 +658,27 @@ select.field option:checked {
     animation: vw-bell-ring 1.4s ease-in-out 0.3s 2;
   }
 }
+
+/*
+ * Ankreuzfelder am Finger (#192): Browser zeichnen sie mit 13–16 px, das ist
+ * auf dem Handy kaum zu treffen (Richtwert 24 px). Nur auf Geräten mit grobem
+ * Zeiger vergrößern – mit der Maus bleibt alles, wie es war.
+ */
+@media (pointer: coarse) {
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="checkbox"],
+  [role="radio"] {
+    /* min-* und flex: none, damit ein Flex-Elternteil sie nicht wieder schmal drückt */
+    min-width: 1.5rem;
+    min-height: 1.5rem;
+    flex: none;
+  }
+}
+
+/* Kleine Filter-Knöpfe („Chips“) am Finger ebenfalls hoch genug (#192) */
+@media (pointer: coarse) {
+  .chip {
+    min-height: 1.75rem;
+  }
+}
