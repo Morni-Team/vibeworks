@@ -224,7 +224,7 @@ export function RepoCheckPanel({
         </div>
       </div>
       <p className="mb-4 text-xs text-muted">
-        {t("hint")} {t("private")}
+        {t("hint")} {t("private")} {t("ignoreHint")}
       </p>
       {canManage && check.enabled && (
         <label className="mb-4 flex flex-wrap items-center gap-2 text-sm">
@@ -300,6 +300,12 @@ export function RepoCheckPanel({
           {check.stale && r && (
             <p className="mb-3 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-400" data-testid="check-stale">
               <TriangleAlert size={16} className="mt-0.5 shrink-0" /> <span>{t("stale", { commit: r.commit.slice(0, 7) })}</span>
+            </p>
+          )}
+          {/* Sichtbar machen, dass Projekt-Ausnahmen etwas weggefiltert haben (#197) */}
+          {r && (r.suppressed ?? 0) > 0 && (
+            <p className="mb-3 text-xs text-muted" data-testid="check-suppressed">
+              {t("suppressed", { n: r.suppressed ?? 0 })}
             </p>
           )}
           {/* Abgebrochene Werkzeuge nennen, statt den Lauf als sauber zu zeigen (#149) */}

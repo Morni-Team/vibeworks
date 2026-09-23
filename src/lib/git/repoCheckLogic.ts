@@ -20,6 +20,8 @@ export interface CheckReport {
   todos: CheckTodo[];
   /** Werkzeuge, die abgebrochen sind – ihr Teil des Berichts fehlt (#149) */
   toolErrors: CheckToolError[];
+  /** Wie viele Funde die Projekt-Ausnahmen weggefiltert haben (#197) */
+  suppressed?: number;
   counts: { secrets: number; vulnerabilities: number; findings: number; todos: number };
 }
 
@@ -63,6 +65,7 @@ export function parseCheckReport(raw: unknown): CheckReport {
     findings,
     todos,
     toolErrors: rows(r.toolErrors, 20).map((x) => ({ tool: str(x.tool, 40), message: str(x.message, 300) })).filter((x) => x.tool),
+    ...(typeof r.suppressed === "number" && r.suppressed > 0 ? { suppressed: Math.min(9999, Math.floor(r.suppressed)) } : {}),
     counts: { secrets: secrets.length, vulnerabilities: vulnerabilities.length, findings: findings.length, todos: todos.length },
   };
 }

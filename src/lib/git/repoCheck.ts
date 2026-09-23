@@ -7,6 +7,7 @@ import { normalizeCheckBranch } from "./repoCheckBranch";
 import { artifactJson, deleteRepoFile, dispatchWorkflow, githubTarget, installError, latestWorkflowRun, readRepoFile, writeRepoFile, type GhTarget } from "./githubActions";
 import { REPO_CHECK_ARTIFACT, REPO_CHECK_FILE, REPO_CHECK_PATH, REPO_CHECK_WORKFLOW } from "./repoCheckWorkflow";
 import { checkGotWorse, parseCheckReport, reportIsStale, type CheckReport } from "./repoCheckLogic";
+import { applyCheckIgnore, parseCheckIgnore } from "./checkIgnoreLogic";
 import { syncCheckTasks } from "./checkTasks";
 
 // Repo-Check über GitHub Actions: VibeWorks legt den Workflow selbst ins
@@ -21,6 +22,8 @@ const DAY = 86_400_000;
 const POLL_MS = 30 * 60_000;
 const MAX_ARTIFACT = 5 * 1024 * 1024;
 const REPORT_FILE = "vibeworks-check.json";
+/** Projekt-Ausnahmen im geprüften Repository (#197) – freiwillig, darf fehlen. */
+const CHECK_IGNORE_PATH = ".vibeworks-check.json";
 /** Erste Zeile der Vorlage – nur Dateien mit dieser Zeile aktualisiert oder entfernt VibeWorks. */
 const MARKER = REPO_CHECK_WORKFLOW.split("\n")[0];
 
@@ -83,11 +86,16 @@ async function ensureWorkflow(ctx: Ctx): Promise<"created" | "updated" | "curren
 
 async function downloadReport(ctx: Ctx, runId: number): Promise<CheckReport> {
   const raw = await artifactJson(ctx.target, runId, REPO_CHECK_ARTIFACT, REPORT_FILE, MAX_ARTIFACT);
+  let report: CheckReport;
   try {
-    return parseCheckReport(raw);
+    report = parseCheckReport(raw);
   } catch {
     throw new GitError(tk("check", "errors.badReport"));
   }
+  // Projekt-Ausnahmen (#197): Was das Repository in .vibeworks-check.json als
+  // „hier kein Problem“ erklärt, fällt raus – Geheimnisse bleiben immer stehen.
+  const ignoreFile = await readRepoFile(ctx.target, CHECK_IGNORE_PATH).catch(() => null);
+  return applyCheckIgnore(report, parseCheckIgnore(ignoreFile?.text ?? null));
 }
 
 async function run(projectId: string, force: boolean): Promise<void> {

@@ -28,6 +28,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.3",
+    date: "2026-09-23",
+    title: "Repo-Check: eigene Ausnahmen je Projekt",
+    titleEn: "Repo check: per-project exceptions",
+    changes: [
+      {
+        type: "neu",
+        text: "Meldungen, die in deinem Projekt keine sind, nimmst du jetzt im Repository aus: eine Datei .vibeworks-check.json mit ignoreRules und ignorePaths. Damit hört auf, dass dieselben Fehlalarme jede Woche wiederkommen",
+        en: "Reports that are not a problem in your project can now be excluded in the repository: a file .vibeworks-check.json with ignoreRules and ignorePaths. That stops the same false alarms coming back every week",
+      },
+      {
+        type: "besser",
+        text: "VibeWorks schreibt immer dazu, wie viele Funde dadurch weggefallen sind – verstecken lässt sich nichts unbemerkt. Gefundene Geheimnisse bleiben ohnehin immer stehen",
+        en: "VibeWorks always states how many findings were dropped that way – nothing hides unnoticed. Found secrets always stay regardless",
+      },
+    ],
+  },
+  {
     version: "1.6.2",
     date: "2026-09-23",
     title: "Kleinstschrift auf dem Handy lesbar",
