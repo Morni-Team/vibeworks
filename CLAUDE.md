@@ -66,6 +66,10 @@ Nichts als erledigt melden – weder im Issue noch in VibeWorks noch in der Antw
   schreibt `.github/workflows/vibeworks-check.yml` neu – ein Test vergleicht beide.
 - **Erst prüfen, ob ein Befund noch existiert.** Aufgaben aus dem Repo-Check nennen Datei und Zeile
   eines früheren Laufs; oft ist die Stelle längst geändert. Nachsehen, dann antworten.
+- **Aus fremdem Text keinen Suchausdruck bauen.** Muster, Namen oder Filter aus einem fremden
+  Repository (oder von Nutzerseite) gehören nicht in `new RegExp(...)` – ein verschachteltes
+  Muster bringt den Vergleich zum Verheddern und blockiert den Server. Gemessen: 6,8 Sekunden
+  für einen einzigen Vergleich (#199). Stattdessen zeichen- oder segmentweise vergleichen.
 - **Handy-Tests brauchen echte Touch-Ereignisse.** Selbst erzeugte `PointerEvent`s scheitern an
   `setPointerCapture` und melden Fehler, die es nicht gibt. Richtig geht es über CDP
   (`Input.dispatchTouchEvent`) mit einem Geräteprofil wie `devices["Pixel 7"]`.
