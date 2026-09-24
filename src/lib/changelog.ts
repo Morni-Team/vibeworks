@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.5",
+    date: "2026-09-24",
+    title: "Ausnahme-Muster können den Server nicht mehr ausbremsen",
+    titleEn: "Exception patterns can no longer stall the server",
+    changes: [
+      {
+        type: "fix",
+        text: "Die gestern eingeführten Pfadmuster wurden in einen Suchausdruck übersetzt. Ein verschachteltes Muster aus einem fremden Repository konnte den Server damit minutenlang beschäftigen – gemessen 6,8 Sekunden für einen einzigen Vergleich, und es wuchs weiter. Der Vergleich läuft jetzt ohne Suchausdruck und braucht für denselben Fall keine Millisekunde",
+        en: "The path patterns introduced yesterday were translated into a search expression. A nested pattern from someone else's repository could keep the server busy for minutes – measured at 6.8 seconds for a single comparison, and still growing. The comparison now runs without a search expression and takes less than a millisecond for the same case",
+      },
+    ],
+  },
+  {
     version: "1.6.4",
     date: "2026-09-23",
     title: "Demo lädt zum eigenen Konto ein",

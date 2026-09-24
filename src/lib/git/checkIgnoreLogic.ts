@@ -50,19 +50,59 @@ export function parseCheckIgnore(raw: string | null | undefined): CheckIgnore {
   };
 }
 
-/** Einfaches Pfadmuster: * bleibt im Ordner, ** geht beliebig tief. */
+/**
+ * Ein Namensstück vergleichen, nur mit „*“. Bewusst ohne RegExp: Das Muster
+ * kommt aus einem fremden Repository, und ein aus Fremdtext gebauter Ausdruck
+ * kann sich beim Prüfen verheddern und den Server ausbremsen (#199). Dieses
+ * Verfahren läuft in einem Durchgang mit Rücksprung – nie exponentiell.
+ */
+function partMatches(pattern: string, part: string): boolean {
+  let p = 0;
+  let i = 0;
+  let star = -1;
+  let mark = 0;
+  while (i < part.length) {
+    if (p < pattern.length && (pattern[p] === part[i] || pattern[p] === "?")) {
+      p++;
+      i++;
+    } else if (p < pattern.length && pattern[p] === "*") {
+      star = p++;
+      mark = i;
+    } else if (star >= 0) {
+      p = star + 1;
+      i = ++mark;
+    } else {
+      return false;
+    }
+  }
+  while (p < pattern.length && pattern[p] === "*") p++;
+  return p === pattern.length;
+}
+
+/** Pfadmuster: * bleibt im Ordner, ** geht beliebig tief. Ohne RegExp (#199). */
 export function pathMatches(pattern: string, file: string): boolean {
-  const clean = file.replace(/^\.?\//, "");
-  const rx = pattern
-    .replace(/^\.?\//, "")
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-    // Erst die beiden Sternchen-Formen merken, dann das einzelne ersetzen
-    .replace(/\*\*\//g, "\u0000")
-    .replace(/\*\*/g, "\u0001")
-    .replace(/\*/g, "[^/]*")
-    .replace(/\u0000/g, "(?:.*/)?")
-    .replace(/\u0001/g, ".*");
-  return new RegExp(`^${rx}$`).test(clean);
+  const pats = pattern.replace(/^\.?\//, "").split("/");
+  const parts = file.replace(/^\.?\//, "").split("/");
+  let p = 0;
+  let i = 0;
+  let star = -1;
+  let mark = 0;
+  while (i < parts.length) {
+    if (p < pats.length && pats[p] === "**") {
+      star = p++;
+      mark = i;
+    } else if (p < pats.length && partMatches(pats[p], parts[i])) {
+      p++;
+      i++;
+    } else if (star >= 0) {
+      p = star + 1;
+      i = ++mark;
+    } else {
+      return false;
+    }
+  }
+  while (p < pats.length && pats[p] === "**") p++;
+  return p === pats.length;
 }
 
 const ruleHit = (rules: string[], rule: string) => rules.some((r) => rule === r || rule.startsWith(r));

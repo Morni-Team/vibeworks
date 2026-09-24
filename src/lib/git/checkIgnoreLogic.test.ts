@@ -37,6 +37,17 @@ describe("Projekt-Ausnahmen für den Repo-Check (#197)", () => {
     expect(pathMatches("scripts/**", "./scripts/x.js")).toBe(true);
   });
 
+  it("verheddert sich nicht an einem bösartigen Muster (#199)", () => {
+    // Früher baute pathMatches daraus einen regulären Ausdruck – ein solches
+    // Muster hätte den Server minutenlang beschäftigt. Jetzt ist es sofort durch.
+    const gemein = "*a*a*a*a*a*a*a*a*a*a*a*a*b";
+    const lang = `src/${"a".repeat(600)}.ts`;
+    const start = Date.now();
+    expect(pathMatches(gemein, lang)).toBe(false);
+    expect(pathMatches("**/*a*a*a*a*a*a*b", lang)).toBe(false);
+    expect(Date.now() - start).toBeLessThan(200);
+  });
+
   it("filtert nach Regel und Pfad und zählt mit", () => {
     const gefiltert = applyCheckIgnore(report(), {
       ignoreRules: ["fallow:unused-file", "javascript.lang.security.audit.path-traversal"],
