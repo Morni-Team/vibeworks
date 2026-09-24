@@ -28,6 +28,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.7",
+    date: "2026-09-24",
+    title: "CI-Designer: eine Ansicht statt zwei",
+    titleEn: "CI designer: one view instead of two",
+    changes: [
+      {
+        type: "fix",
+        text: "Die Node-Ansicht wirkte oft leer, obwohl Blöcke da waren – sie lagen außerhalb des Ausschnitts. Jetzt passt sich die Ansicht beim Öffnen automatisch an, sodass die ganze Kette zu sehen ist",
+        en: "The node view often looked empty although blocks were there – they sat outside the visible area. The view now fits itself on opening so the whole chain is visible",
+      },
+      {
+        type: "besser",
+        text: "Solange die Node-Ansicht läuft, steht die alte Liste nicht mehr darunter – alles war doppelt zu sehen. Bearbeiten geht direkt am Block, samt eigener Befehle, und ein neuer Knopf legt dort auch neue Blöcke an",
+        en: "While the node view is on, the old list no longer sits below it – everything was shown twice. Editing happens right on the block, including custom commands, and a new button adds blocks there too",
+      },
+      {
+        type: "fix",
+        text: "Der Start-Block überlappte den ersten Schritt und hing ohne Linie daneben; Verbindungen setzten bei breiteren Blöcken an der falschen Stelle an. Beides sitzt jetzt richtig",
+        en: "The start block overlapped the first step and hung there without a line; connections started at the wrong spot on wider blocks. Both now sit correctly",
+      },
+    ],
+  },
+  {
     version: "1.6.6",
     date: "2026-09-24",
     title: "Fehlalarme wegklicken – und weniger davon",

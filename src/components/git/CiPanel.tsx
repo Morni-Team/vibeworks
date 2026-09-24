@@ -193,7 +193,8 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
   }, []);
   // Auch im Vollbild: ein hochkantes Handy bleibt schmal, untereinander passt mehr
   const stacked = narrow;
-  const nodePos = (i: number, id: string) => layout[id] ?? (stacked ? { x: 20, y: 110 + i * 96 } : { x: 24 + i * 190, y: 96 });
+  // Nebeneinander beginnt die Kette weiter rechts: links davor steht der Start-Block (#202)
+  const nodePos = (i: number, id: string) => layout[id] ?? (stacked ? { x: 20, y: 110 + i * 96 } : { x: 250 + i * 190, y: 96 });
   // Verbinden wie in n8n: Ausgang (Port) antippen, dann Ziel-Node antippen.
   // Die Kette bleibt dabei intakt – „verbinden“ heißt hier: den gewählten Step
   // direkt nach dem Ausgangs-Node einsortieren (GitHub führt strikt der Reihe aus).
@@ -313,6 +314,15 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
     const timer = setTimeout(() => fitRef.current(), 120);
     return () => clearTimeout(timer);
   }, [full]);
+  // Und einmal, sobald die Ansicht das erste Mal Blöcke hat (#202): sonst lag
+  // die Kette je nach Anordnung außerhalb und der Bereich sah leer aus.
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (fitted.current || !showCanvas) return;
+    fitted.current = true;
+    const timer = setTimeout(() => fitRef.current(), 150);
+    return () => clearTimeout(timer);
+  }, [showCanvas]);
 
   // Pinch-Zoom auf dem Handy (#192): zwei Finger vergrößern die Ansicht um den
   // Punkt zwischen ihnen. Native Listener mit preventDefault, sonst zoomt
@@ -473,8 +483,25 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
 
           {showCanvas && inStage(
             <div ref={stageRef} className={cn("relative overflow-hidden rounded-2xl border bg-bg/40", full && "fixed inset-0 z-50 flex h-dvh flex-col overflow-hidden rounded-none border-0 p-3 sm:p-4")} data-testid="ci-canvas">
+              {/* Auswahl der Block-Arten, sichtbar über der Leinwand (#202) */}
+              {palette !== null && canEdit && (
+                <div className="absolute left-2 top-2 z-20 grid max-h-[70%] w-[min(22rem,80%)] gap-1 overflow-y-auto rounded-xl border border-accent/40 bg-bg/95 p-2 text-sm shadow-xl" data-testid="ci-canvas-palette">
+                  {STEP_KINDS.map((k) => (
+                    <button key={k} type="button" className="rounded-lg px-2 py-1 text-left hover:bg-fg/10" onClick={() => insert(palette, k)} data-kind={k}>
+                      <span className="font-medium">{t(`kinds.${k}`)}</span>
+                      <span className="block text-xs text-muted">{t(`kindHints.${k}`)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* Werkzeugleiste: Ansicht umschalten, zoomen, Vollbild, einpassen */}
               <div className="absolute right-2 top-2 z-10 flex max-w-[75%] flex-wrap justify-end gap-1">
+                {/* Block hinzufügen direkt in der Node-Ansicht (#202) – die Liste darunter bleibt zu */}
+                {canEdit && draft.steps.length < MAX_STEPS && (
+                  <button type="button" className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9" onClick={() => setPalette(palette === draft.steps.length ? null : draft.steps.length)} aria-label={t("addHere")} title={t("addHere")} aria-expanded={palette === draft.steps.length} data-testid="ci-canvas-add">
+                    <Plus size={16} />
+                  </button>
+                )}
                 <button type="button" className="btn btn-ghost btn-icon h-8 w-8 bg-bg sm:h-9 sm:w-9" onClick={() => { setFull(false); setCanvasView(false); }} aria-label={t("canvasOff")} title={t("canvasOff")} data-testid="ci-canvas-off">
                   <List size={16} />
                 </button>
@@ -530,16 +557,28 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
                   })()}
                   {/* Verbindungen zwischen aufeinanderfolgenden Steps */}
                   <svg className={cn("absolute inset-0 h-full w-full", linkFrom ? "pointer-events-none" : "pointer-events-none")} aria-hidden>
+                    {/* Vom Start zum ersten Block – sonst hängt der Start-Kasten lose daneben (#202) */}
+                    {mainId && (() => {
+                      const p = nodePos(0, mainId);
+                      const sx = stacked ? p.x + 85 : Math.max(0, p.x - 210) + 130;
+                      const sy = stacked ? Math.max(0, p.y - 96) + 76 : p.y + 30;
+                      const ex = stacked ? p.x + 85 : p.x;
+                      const ey = stacked ? p.y : p.y + 30;
+                      const d = stacked ? `M ${sx} ${sy} C ${sx} ${sy + 20}, ${ex} ${ey - 20}, ${ex} ${ey}` : `M ${sx} ${sy} C ${sx + 30} ${sy}, ${ex - 30} ${ey}, ${ex} ${ey}`;
+                      return <path d={d} fill="none" stroke="currentColor" strokeOpacity={0.3} strokeWidth={1.5} strokeDasharray="4 3" className="text-accent-ink" data-testid="ci-edge-start" />;
+                    })()}
                     {flow.map((e) => {
                       const iFrom = draft.steps.findIndex((s) => s.id === e.from);
                       const iTo = draft.steps.findIndex((s) => s.id === e.to);
                       if (iFrom < 0 || iTo < 0) return null;
                       const a = nodePos(iFrom, e.from);
                       const b = nodePos(iTo, e.to);
-                      // Untereinander: von unten nach oben verbinden, sonst von rechts nach links
-                      const x1 = stacked ? a.x + 85 : a.x + 170,
+                      // Untereinander: von unten nach oben verbinden, sonst von rechts nach links.
+                      // Breite je nach Zustand – ein Block im Bearbeiten-Modus ist breiter (#202)
+                      const breite = editNode === e.from ? 256 : 170;
+                      const x1 = stacked ? a.x + breite / 2 : a.x + breite,
                         y1 = stacked ? a.y + 62 : a.y + 30,
-                        x2 = stacked ? b.x + 85 : b.x,
+                        x2 = stacked ? b.x + (editNode === e.to ? 128 : 85) : b.x,
                         y2 = stacked ? b.y : b.y + 30;
                       const curve = stacked ? `M ${x1} ${y1} C ${x1} ${y1 + 24}, ${x2} ${y2 - 24}, ${x2} ${y2}` : `M ${x1} ${y1} C ${x1 + 40} ${y1}, ${x2 - 40} ${y2}, ${x2} ${y2}`;
                       const state = nodes[e.to] ?? "idle";
@@ -712,7 +751,9 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
             </div>,
           )}
 
-          <div data-testid="ci-steps">
+          {/* Nicht zweimal dasselbe (#202): Solange die Node-Ansicht läuft, bleibt
+              die Liste weg – bearbeiten lässt sich alles direkt am Block. */}
+          <div data-testid="ci-steps" className={cn(showCanvas && "hidden")}>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold text-muted">{t("steps")}</p>
               {draft.steps.length > 0 && !canvasView && (
