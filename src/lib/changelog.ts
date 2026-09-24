@@ -37,7 +37,6 @@ export const CHANGELOG: ChangelogEntry[] = [
         type: "neu",
         text: "Jeder Befund hat jetzt einen Knopf „Fehlalarm“. Ein Klick nimmt ihn aus der Liste, ohne dass du im Repository etwas anlegen musst – und „zurückholen“ bringt alles wieder",
         en: "Every finding now has a “false alarm” button. One click takes it off the list without touching the repository – and “bring back” restores everything",
-        link: "/",
       },
       {
         type: "besser",
