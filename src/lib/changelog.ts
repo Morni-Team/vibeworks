@@ -28,6 +28,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.6",
+    date: "2026-09-24",
+    title: "Fehlalarme wegklicken – und weniger davon",
+    titleEn: "Dismiss false alarms – and get fewer",
+    changes: [
+      {
+        type: "neu",
+        text: "Jeder Befund hat jetzt einen Knopf „Fehlalarm“. Ein Klick nimmt ihn aus der Liste, ohne dass du im Repository etwas anlegen musst – und „zurückholen“ bringt alles wieder",
+        en: "Every finding now has a “false alarm” button. One click takes it off the list without touching the repository – and “bring back” restores everything",
+        link: "/",
+      },
+      {
+        type: "besser",
+        text: "Der Repo-Check erkennt selbst, dass Dateien, die per <script src> oder <link href> in einer HTML-Seite hängen, nicht ungenutzt sind. Das war die größte Gruppe der Fehlalarme",
+        en: "The repo check now recognises by itself that files loaded via <script src> or <link href> in an HTML page are not unused. That was the biggest group of false alarms",
+      },
+      {
+        type: "besser",
+        text: "Gefundene Geheimnisse lassen sich bewusst nicht wegklicken, und es steht immer dabei, wie viele Funde gerade ausgeblendet sind",
+        en: "Found secrets deliberately cannot be dismissed, and it always says how many findings are currently hidden",
+      },
+    ],
+  },
+  {
     version: "1.6.5",
     date: "2026-09-24",
     title: "Ausnahme-Muster können den Server nicht mehr ausbremsen",

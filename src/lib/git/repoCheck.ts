@@ -7,7 +7,7 @@ import { normalizeCheckBranch } from "./repoCheckBranch";
 import { artifactJson, deleteRepoFile, dispatchWorkflow, githubTarget, installError, latestWorkflowRun, readRepoFile, writeRepoFile, type GhTarget } from "./githubActions";
 import { REPO_CHECK_ARTIFACT, REPO_CHECK_FILE, REPO_CHECK_PATH, REPO_CHECK_WORKFLOW } from "./repoCheckWorkflow";
 import { checkGotWorse, parseCheckReport, reportIsStale, type CheckReport } from "./repoCheckLogic";
-import { applyCheckIgnore, parseCheckIgnore } from "./checkIgnoreLogic";
+import { applyCheckIgnore, applyDismissed, dismissKey, MAX_DISMISSED, parseCheckIgnore } from "./checkIgnoreLogic";
 import { syncCheckTasks } from "./checkTasks";
 
 // Repo-Check über GitHub Actions: VibeWorks legt den Workflow selbst ins
@@ -216,7 +216,7 @@ async function notifyCheckAlert(project: { id: string; name: string; ownerId: st
   }));
 }
 
-type CheckFields = Pick<RepoCache, "webUrl" | "defaultBranch" | "checkStatus" | "checkReport" | "checkRunUrl" | "checkRunAt" | "checkFetchedAt" | "checkError" | "commits">;
+type CheckFields = Pick<RepoCache, "webUrl" | "defaultBranch" | "checkStatus" | "checkReport" | "checkRunUrl" | "checkRunAt" | "checkFetchedAt" | "checkError" | "commits" | "checkDismissed">;
 
 /** Zuletzt bekannter Commit aus dem Abgleich – für „ist der Bericht noch aktuell?“ (#148) */
 function headCommit(c: CheckFields | null): string | null {
@@ -230,7 +230,8 @@ function headCommit(c: CheckFields | null): string | null {
  * defaultBranch der Standard des Repositories – beides braucht die Oberfläche.
  */
 export function serializeRepoCheck(enabled: boolean, c: CheckFields | null, autoTasks = "off", checkBranch: unknown = null) {
-  const report = c?.checkReport ? parseCheckReport(c.checkReport) : null;
+  // Abgehakte Fehlalarme (#203) erst hier herausnehmen – gespeichert bleibt der volle Bericht
+  const report = c?.checkReport ? applyDismissed(parseCheckReport(c.checkReport), c.checkDismissed ?? []) : null;
   return {
     enabled,
     autoTasks,
@@ -239,6 +240,8 @@ export function serializeRepoCheck(enabled: boolean, c: CheckFields | null, auto
     report,
     /** Bericht gehört zu einem älteren Commit als dem zuletzt bekannten (#148) */
     stale: reportIsStale(report?.commit, headCommit(c)),
+    /** Wie viele Funde von Hand als Fehlalarm abgehakt sind (#203) */
+    dismissed: c?.checkDismissed?.length ?? 0,
     runUrl: c?.checkRunUrl ?? null,
     runAt: c?.checkRunAt?.toISOString() ?? null,
     fetchedAt: c?.checkFetchedAt?.toISOString() ?? null,

@@ -10,6 +10,7 @@ import { GitError } from "@/lib/git/providers";
 import { refreshRepoCheck, serializeRepoCheck, setRepoCheck, startRepoCheck } from "@/lib/git/repoCheck";
 import { checkBranchError, normalizeCheckBranch } from "@/lib/git/repoCheckBranch";
 import { syncCheckTasks } from "@/lib/git/checkTasks";
+import { applyDismissed, dismissKey, dismissTarget, MAX_DISMISSED } from "@/lib/git/checkIgnoreLogic";
 import { CHECK_KINDS, CHECK_TASK_MODES, checkItems } from "@/lib/git/checkTasksLogic";
 import { parseCheckReport } from "@/lib/git/repoCheckLogic";
 import { taskCreateSchema } from "@/lib/validation";
@@ -25,6 +26,9 @@ const bodySchema = z.union([
   z.object({ action: z.literal("autoTasks"), mode: z.enum(CHECK_TASK_MODES) }),
   // Zweig für den Repo-Check (#125) – nur der Besitzer; null heißt Standardzweig
   z.object({ action: z.literal("setBranch"), branch: z.string().max(200).nullable() }),
+  // Fehlalarm abhaken oder zurückholen (#203) – die Stelle kommt aus dem gespeicherten Bericht
+  z.object({ action: z.enum(["dismiss", "undismiss"]), kind: z.enum(CHECK_KINDS), index: z.number().int().min(0).max(5000) }),
+  z.object({ action: z.literal("undismissAll") }),
 ]);
 
 // Repo-Check eines Projekts. Die Ergebnisse sehen nur Projektmitglieder;
@@ -83,6 +87,26 @@ export const POST = route<Params>(async (req, { params }) => {
     await db.project.update({ where: { id }, data: { checkTasks: body.mode } });
     const cache = await db.repoCache.findUnique({ where: { projectId: id }, select: { checkReport: true } });
     if (cache?.checkReport && body.mode !== "off") await syncCheckTasks(id, parseCheckReport(cache.checkReport));
+  } else if (body.action === "dismiss" || body.action === "undismiss") {
+    // Fehlalarm abhaken (#203): gespeichert wird Regel plus Fundstelle, nicht der Platz in der Liste
+    limitOrThrow(`repo-check-dismiss:${user.id}`, 120, 10 * MINUTE);
+    const cache = await db.repoCache.findUnique({ where: { projectId: id }, select: { checkReport: true, checkDismissed: true } });
+    const full = cache?.checkReport ? parseCheckReport(cache.checkReport) : null;
+    // Abhaken geht über die Liste, wie sie gerade zu sehen ist – Zurückholen über die volle
+    const sicht = full ? (body.action === "dismiss" ? applyDismissed(full, cache?.checkDismissed ?? []) : full) : null;
+    const ziel = sicht ? dismissTarget(sicht, body.kind, body.index) : null;
+    if (!ziel) throw new ApiError(404, tk("check", "errors.noFinding"));
+    const key = dismissKey(ziel.rule, ziel.file);
+    const list = new Set(cache?.checkDismissed ?? []);
+    if (body.action === "dismiss") {
+      if (list.size >= MAX_DISMISSED) throw new ApiError(400, tk("check", "errors.dismissLimit", { n: MAX_DISMISSED }));
+      list.add(key);
+    } else {
+      list.delete(key);
+    }
+    await db.repoCache.updateMany({ where: { projectId: id }, data: { checkDismissed: [...list] } });
+  } else if (body.action === "undismissAll") {
+    await db.repoCache.updateMany({ where: { projectId: id }, data: { checkDismissed: [] } });
   } else if (body.action === "setBranch") {
     // Zweig säubern und prüfen (git check-ref-format, grob) – ungültig → 400
     const branch = normalizeCheckBranch(body.branch);

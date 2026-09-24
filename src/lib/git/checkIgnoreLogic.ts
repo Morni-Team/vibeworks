@@ -128,3 +128,53 @@ export function applyCheckIgnore(report: CheckReport, ignore: CheckIgnore): Chec
     counts: { secrets: report.secrets.length, vulnerabilities: vulnerabilities.length, findings: findings.length, todos: todos.length },
   };
 }
+
+// ── Von Hand abgehakte Fehlalarme (#203) ───────────────────────
+
+/** Ein Fund, wie ihn die Oberfläche kennt – Regel plus Fundstelle. */
+export const dismissKey = (rule: string, file: string): string => `${rule.slice(0, 200)}|${file.slice(0, 300)}`;
+
+/** Höchstens so viele Haken je Projekt – sonst wächst die Liste ins Uferlose. */
+export const MAX_DISMISSED = 500;
+
+/**
+ * Abgehakte Funde aus dem Bericht nehmen. Wie bei den Projekt-Ausnahmen gilt:
+ * Geheimnisse bleiben stehen, und die Zahl der weggefallenen Funde wandert
+ * mit, damit in der Oberfläche steht, wie viel nicht zu sehen ist.
+ */
+export function applyDismissed(report: CheckReport, dismissed: readonly string[]): CheckReport {
+  if (!dismissed.length) return report;
+  const set = new Set(dismissed);
+  const gone = (rule: string, file: string) => set.has(dismissKey(rule, file));
+  const findings = report.findings.filter((f) => !gone(f.rule, f.file));
+  const todos = report.todos.filter((t) => !gone("todo", t.file));
+  const vulnerabilities = report.vulnerabilities.filter((v) => !gone(v.id, v.source));
+  const weg = report.findings.length - findings.length + (report.todos.length - todos.length) + (report.vulnerabilities.length - vulnerabilities.length);
+  if (!weg) return report;
+  return {
+    ...report,
+    findings,
+    todos,
+    vulnerabilities,
+    suppressed: (report.suppressed ?? 0) + weg,
+    counts: { secrets: report.secrets.length, vulnerabilities: vulnerabilities.length, findings: findings.length, todos: todos.length },
+  };
+}
+
+/** Welche Regel und welche Datei steckt hinter einem Fund? Für den Haken (#203). */
+export function dismissTarget(report: CheckReport, kind: string, index: number): { rule: string; file: string } | null {
+  if (kind === "vulnerabilities") {
+    const v = report.vulnerabilities[index];
+    return v ? { rule: v.id, file: v.source } : null;
+  }
+  if (kind === "todos") {
+    const t = report.todos[index];
+    return t ? { rule: "todo", file: t.file } : null;
+  }
+  if (kind === "findings") {
+    const f = report.findings[index];
+    return f ? { rule: f.rule, file: f.file } : null;
+  }
+  // Geheimnisse lassen sich nicht abhaken – hier gibt es bewusst kein Ziel
+  return null;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyCheckIgnore, parseCheckIgnore, pathMatches } from "./checkIgnoreLogic";
+import { applyCheckIgnore, applyDismissed, dismissKey, dismissTarget, parseCheckIgnore, pathMatches } from "./checkIgnoreLogic";
 import { parseCheckReport } from "./repoCheckLogic";
 
 const report = (extra: Record<string, unknown> = {}) =>
@@ -75,5 +75,25 @@ describe("Projekt-Ausnahmen für den Repo-Check (#197)", () => {
   it("ohne Ausnahmen bleibt der Bericht, wie er ist", () => {
     const r = report();
     expect(applyCheckIgnore(r, { ignoreRules: [], ignorePaths: [], reason: null })).toBe(r);
+  });
+
+  it("hakt einen Fund als Fehlalarm ab und holt ihn zurück (#203)", () => {
+    const r = report();
+    const ziel = dismissTarget(r, "findings", 0);
+    expect(ziel).toEqual({ rule: "fallow:unused-file", file: "src/renderer/chat.js" });
+    const weg = applyDismissed(r, [dismissKey(ziel!.rule, ziel!.file)]);
+    expect(weg.findings.map((f) => f.file)).toEqual(["src/main/pfade.js", "src/echt.ts"]);
+    expect(weg.suppressed).toBe(1);
+    expect(weg.counts.findings).toBe(2);
+    // Ohne Haken bleibt alles, wie es war – dieselbe Instanz
+    expect(applyDismissed(r, [])).toBe(r);
+    expect(applyDismissed(r, ["gibtsnicht|nirgends"])).toBe(r);
+  });
+
+  it("bietet für Geheimnisse gar kein Ziel an – die bleiben immer sichtbar", () => {
+    expect(dismissTarget(report(), "secrets", 0)).toBeNull();
+    expect(dismissTarget(report(), "findings", 99)).toBeNull();
+    expect(dismissTarget(report(), "vulnerabilities", 0)).toEqual({ rule: "GHSA-1", file: "julia-android/package.json" });
+    expect(dismissTarget(report(), "todos", 0)).toEqual({ rule: "todo", file: "scripts/whisper-holen.js" });
   });
 });

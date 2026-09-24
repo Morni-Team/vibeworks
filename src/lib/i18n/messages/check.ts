@@ -12,6 +12,11 @@ const de = {
   running: "Läuft …",
   lastRun: "Geprüft {ago}",
   suppressed: plural("{n} Fund ist über die Datei .vibeworks-check.json im Repository ausgenommen.", "{n} Funde sind über die Datei .vibeworks-check.json im Repository ausgenommen."),
+  dismiss: {
+    button: "Fehlalarm",
+    hint: "Diesen Fund als Fehlalarm abhaken – er verschwindet aus der Liste, bleibt aber zurückholbar.",
+    undoAll: plural("{n} Fehlalarm zurückholen", "{n} Fehlalarme zurückholen"),
+  },
   stale: "Dieser Bericht gehört zum Commit {commit} – seitdem gab es neue Änderungen. Die Funde sind also nicht der aktuelle Stand; der nächste Lauf holt das nach.",
   toolErrors: plural("Ein Prüfwerkzeug ist abgebrochen – sein Teil fehlt im Bericht:", "{n} Prüfwerkzeuge sind abgebrochen – ihr Teil fehlt im Bericht:"),
   openRun: "Lauf bei GitHub",
@@ -103,6 +108,7 @@ const de = {
     noPermission:
       "Das Token darf keine Workflows anlegen – beim klassischen GitHub-Token fehlt das Recht „workflow“ (oder der Schreibzugriff). Neues Token erstellen oder die Datei selbst ins Repository legen.",
     protected: "GitHub hat das Anlegen der Datei abgelehnt – vermutlich ist der Standardzweig geschützt. Lege .github/workflows/vibeworks-check.yml selbst an.",
+    dismissLimit: "Schon {n} Funde abgehakt – mehr geht nicht. Hol dir welche zurück oder nimm sie im Repository dauerhaft aus.",
     runFailed: "Der Lauf endete mit „{conclusion}“.",
     noArtifact: "Der Lauf hat keinen Bericht hinterlassen (Artefakt fehlt oder ist abgelaufen).",
     tooLarge: "Der Bericht ist zu groß.",
@@ -120,6 +126,11 @@ const en: Shape<typeof de> = {
   running: "Running …",
   lastRun: "Checked {ago}",
   suppressed: plural("{n} finding is excluded via .vibeworks-check.json in the repository.", "{n} findings are excluded via .vibeworks-check.json in the repository."),
+  dismiss: {
+    button: "False alarm",
+    hint: "Mark this finding as a false alarm – it leaves the list but can be brought back.",
+    undoAll: plural("Bring back {n} false alarm", "Bring back {n} false alarms"),
+  },
   stale: "This report belongs to commit {commit} – there have been changes since. So the findings are not the current state; the next run catches up.",
   toolErrors: plural("One scanning tool broke off – its part is missing from the report:", "{n} scanning tools broke off – their part is missing from the report:"),
   openRun: "Run on GitHub",
@@ -211,6 +222,7 @@ const en: Shape<typeof de> = {
     noPermission:
       "The token isn't allowed to create workflows – a classic GitHub token needs the “workflow” scope (and write access). Create a new token or add the file to the repository yourself.",
     protected: "GitHub refused to create the file – the default branch is probably protected. Add .github/workflows/vibeworks-check.yml yourself.",
+    dismissLimit: "Already {n} findings dismissed – that is the limit. Bring some back or exclude them permanently in the repository.",
     runFailed: "The run ended with “{conclusion}”.",
     noArtifact: "The run left no report (artifact missing or expired).",
     tooLarge: "The report is too large.",

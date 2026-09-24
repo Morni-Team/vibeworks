@@ -918,6 +918,8 @@ model RepoCache {
   checkRunAt       DateTime?
   checkFetchedAt   DateTime?
   checkError       String?
+  /// Als Fehlalarm abgehakte Funde (#203): ["regel|datei", …] – siehe src/lib/git/checkIgnoreLogic.ts
+  checkDismissed   String[]  @default([])
   /// Zuletzt geprüft, ob die Workflow-Datei im Repository aktuell ist (einmal am Tag)
   checkInstalledAt DateTime?
   /// Lighthouse-Check (#82): Zustände wie beim Repo-Check, Bericht siehe src/lib/git/lighthouseLogic.ts

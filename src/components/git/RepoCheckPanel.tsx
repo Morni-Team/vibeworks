@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bug, Check, Copy, ExternalLink, KeyRound, ListPlus, ListTodo, RefreshCw, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Bug, Check, Copy, ExternalLink, EyeOff, KeyRound, ListPlus, ListTodo, RefreshCw, RotateCcw, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
 import { CHECK_TASK_MODES, type CheckTaskMode } from "@/lib/git/checkTasksLogic";
 import { useRouter } from "next/navigation";
 import { TaskDialog, type TaskForm } from "@/components/tasks/TaskDialog";
@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { confirmDialog } from "@/lib/client/dialogs";
 
 type Kind = "secrets" | "vulnerabilities" | "findings" | "todos";
-type Action = "run" | "refresh" | "enable" | "disable" | "task" | "draft" | "autoTasks" | "setBranch";
+type Action = "run" | "refresh" | "enable" | "disable" | "task" | "draft" | "autoTasks" | "setBranch" | "dismiss" | "undismiss" | "undismissAll";
 
 const KINDS: Kind[] = ["secrets", "vulnerabilities", "findings", "todos"];
 const TOOL: Record<Kind, keyof CheckReport["tools"]> = { secrets: "gitleaks", vulnerabilities: "osv", findings: "semgrep", todos: "todos" };
@@ -381,6 +381,12 @@ export function RepoCheckPanel({
                                 {canTask && (
                                   <button type="button" className="btn btn-sm" data-testid="check-to-task" disabled={busy !== null} onClick={() => void openDraft(open, row.index)}>
                                     <ListPlus size={12} /> {t("tasks.toTask")}
+                                  </button>
+                                )}
+                                {/* Fehlalarm abhaken (#203) – Geheimnisse bewusst nicht */}
+                                {canRun && open !== "secrets" && (
+                                  <button type="button" className="btn btn-sm" data-testid="check-dismiss" disabled={busy !== null} onClick={() => void act("dismiss", { kind: open, index: row.index })} title={t("dismiss.hint")}>
+                                    <EyeOff size={12} /> {t("dismiss.button")}
                                   </button>
                                 )}
                               </div>
