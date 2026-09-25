@@ -295,6 +295,8 @@ export function ApiTokensSection({
         </div>
         <div className="space-y-2" data-testid="project-key">
           <Toggle label={t("projectKey.toggle")} hint={t("projectKey.hint")} checked={scoped} onChange={setScoped} />
+          {/* Warum fehlt ein Projekt? Ohne Hinweis ist das nicht zu erraten (#205) */}
+          {scoped && <p className="text-xs text-muted" data-testid="project-key-which">{t("projectKey.whichHint")}</p>}
           {scoped &&
             (grantable === null ? (
               <div className="h-8 animate-pulse rounded-lg bg-fg/5" />

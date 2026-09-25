@@ -28,6 +28,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.1",
+    date: "2026-09-25",
+    title: "Erklärt, welche Projekte ein Schlüssel freigeben darf",
+    titleEn: "Explains which projects a key can cover",
+    changes: [
+      {
+        type: "besser",
+        text: "Beim Projekt-Schlüssel steht jetzt dabei, warum manche Projekte fehlen: Es erscheinen nur die, in denen du Schlüssel freigeben darfst. Bei Projekten aus einem Team hängt das an der Rolle, die der Besitzer dem Team gegeben hat",
+        en: "The project key now says why some projects are missing: only those where you may grant keys appear. For projects from a team this depends on the role the owner gave that team",
+        link: "/account#mcp",
+      },
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-09-25",
     title: "Bearbeiter dürfen Projekteinstellungen ändern",

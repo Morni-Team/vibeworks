@@ -100,6 +100,8 @@ const de = {
     hint: "Für eine andere KI oder ein anderes Programm: Der Schlüssel sieht nur die gewählten Projekte – keine Docs, Prompts, Suche, Zeiten oder deinen Tagesplan.",
     pick: "Projekte",
     none: "Keine Projekte, die du freigeben darfst.",
+    whichHint:
+      "Hier stehen nur Projekte, in denen du Schlüssel freigeben darfst: eigene und solche, in denen deine Rolle das erlaubt. Fehlt eines, das über ein Team geteilt ist, braucht die Team-Freigabe eine Rolle mit diesem Recht – das stellt der Besitzer des Projekts ein.",
     own: "eigenes",
     of: "von {name}",
     warn: "Achtung: Wer diesen Schlüssel hat, kann in {n} Projekt(en) mit deinem Namen arbeiten ({list}). Besitzer fremder Projekte werden benachrichtigt und können den Zugriff jederzeit widerrufen.",
@@ -267,6 +269,8 @@ const en: Shape<typeof de> = {
     hint: "For another AI or program: the key only sees the chosen projects – no docs, prompts, search, time tracking or your daily plan.",
     pick: "Projects",
     none: "No projects you are allowed to share.",
+    whichHint:
+      "Only projects where you may grant keys appear here: your own and those where your role allows it. If one shared through a team is missing, the team grant needs a role with that permission – the project owner sets that.",
     own: "own",
     of: "by {name}",
     warn: "Careful: whoever has this key can work in {n} project(s) under your name ({list}). Owners of other people's projects are notified and can revoke the access at any time.",
