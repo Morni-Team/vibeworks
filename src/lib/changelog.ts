@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.0",
+    date: "2026-09-25",
+    title: "Bearbeiter dürfen Projekteinstellungen ändern",
+    titleEn: "Editors may change project settings",
+    changes: [
+      {
+        type: "fix",
+        text: "Zweig und automatische Aufgaben des Repo-Checks konnte nur der Besitzer einstellen – nicht einmal ein Manager mit allen Rechten. Dafür genügt jetzt „Projekt bearbeiten“. Ein- und Ausschalten bleibt beim Besitzer, weil dabei die Datei im Repository angefasst wird",
+        en: "Only the owner could set the repo check's branch and automatic tasks – not even a manager with every permission. “Edit project” is now enough. Turning it on and off stays with the owner, because that touches the file in the repository",
+      },
+    ],
+  },
+  {
     version: "1.6.9",
     date: "2026-09-25",
     title: "Repo-Check meldet nur noch echte Aussetzer",

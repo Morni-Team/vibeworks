@@ -81,6 +81,7 @@ export function RepoCheckPanel({
   initial,
   canRun,
   canManage,
+  canEditSettings = false,
   canTask = false,
   hasToken,
 }: {
@@ -88,6 +89,8 @@ export function RepoCheckPanel({
   initial: RepoCheckView;
   canRun: boolean;
   canManage: boolean;
+  /** Zweig und automatische Aufgaben ändern – dafür genügt „Projekt bearbeiten“ (#205) */
+  canEditSettings?: boolean;
   canTask?: boolean;
   hasToken: boolean;
 }) {
@@ -226,7 +229,7 @@ export function RepoCheckPanel({
       <p className="mb-4 text-xs text-muted">
         {t("hint")} {t("private")} {t("ignoreHint")}
       </p>
-      {canManage && check.enabled && (
+      {canEditSettings && check.enabled && (
         <label className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted">{t("tasks.modeLabel")}</span>
           <select
@@ -246,7 +249,7 @@ export function RepoCheckPanel({
         </label>
       )}
 
-      {canManage && check.enabled && (
+      {canEditSettings && check.enabled && (
         <label className="mb-4 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted">{t("branch.label")}</span>
           <input

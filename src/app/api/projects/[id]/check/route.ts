@@ -54,7 +54,17 @@ export const POST = route<Params>(async (req, { params }) => {
   const user = await requireApiUser();
   const { id } = await params;
   const body = await readBody(req, bodySchema, { maxBytes: 1024 });
-  const need = body.action === "enable" || body.action === "disable" || body.action === "autoTasks" || body.action === "setBranch" ? "OWNER" : body.action === "task" || body.action === "draft" ? "tasks.edit" : "git.sync";
+  // Ein- und Ausschalten fasst die Workflow-Datei im Repository an – das bleibt
+  // beim Besitzer. Zweig und automatische Aufgaben sind reine Projekteinstellungen:
+  // dafür reicht „Projekt bearbeiten“, sonst kommt ein Team-Admin nicht heran (#205).
+  const need =
+    body.action === "enable" || body.action === "disable"
+      ? "OWNER"
+      : body.action === "autoTasks" || body.action === "setBranch"
+        ? "project.edit"
+        : body.action === "task" || body.action === "draft"
+          ? "tasks.edit"
+          : "git.sync";
   const { project } = await requireProject(user.id, id, need);
   if (!project.repoUrl) throw new ApiError(400, tk("check", "errors.noRepo"));
 
