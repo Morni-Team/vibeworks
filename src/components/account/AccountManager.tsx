@@ -5,6 +5,7 @@ import { Check, KeyRound, LogOut, Monitor, Save, ShieldCheck, Smartphone, UserRo
 import { FormError } from "@/components/ui/FormError";
 import type { SessionItem } from "@/lib/account";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
+import { useUnsavedWarning } from "@/lib/client/unsaved";
 import { useFormat, useT } from "@/lib/i18n/client";
 import { hasSpecial, PASSWORD_MIN } from "@/lib/auth/passwordRules";
 import { REMINDER_OPTIONS } from "@/lib/auth/passwordAge";
@@ -46,6 +47,9 @@ function ProfileForm({ profile }: { profile: AccountProfile }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Warnen, wenn man mit ungespeicherten Angaben weggeht (#205)
+  const [saved, setSaved] = useState({ displayName: profile.displayName ?? "", email: profile.email ?? "" });
+  useUnsavedWarning("account-profile", displayName !== saved.displayName || email !== saved.email);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,6 +58,7 @@ function ProfileForm({ profile }: { profile: AccountProfile }) {
     setNotice(null);
     try {
       await api("/api/account/profile", { method: "PATCH", body: { displayName, email } });
+      setSaved({ displayName, email });
       setNotice(t("profile.saved"));
     } catch (err) {
       setError(errorMessage(err));

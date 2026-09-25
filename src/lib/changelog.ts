@@ -28,6 +28,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.8",
+    date: "2026-09-25",
+    title: "Kein stiller Verlust angefangener Arbeit",
+    titleEn: "No more silently losing work in progress",
+    changes: [
+      {
+        type: "neu",
+        text: "Wer mitten im Bearbeiten auf einen Link klickt, wird jetzt gefragt, statt seine Eingaben zu verlieren – mit dem VibeWorks-Dialog, nicht mit dem grauen Browser-Kasten. Zunächst für die Konto-Angaben und den CI-Designer",
+        en: "Clicking a link while editing now asks first instead of losing your input – with the VibeWorks dialog, not the grey browser box. For now on the account details and the CI designer",
+      },
+      {
+        type: "besser",
+        text: "Neuere Versionen von lucide-react (Symbole) und Electron (Windows-App)",
+        en: "Newer versions of lucide-react (icons) and Electron (Windows app)",
+      },
+    ],
+  },
+  {
     version: "1.6.7",
     date: "2026-09-24",
     title: "CI-Designer: eine Ansicht statt zwei",

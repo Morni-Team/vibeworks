@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/Toaster";
 import { entryStepId, MAX_STEPS, newStep, nextStepId, STEP_KINDS, stepFlow, STEP_WHEN, type CiPipeline, type CiStep, type NodeState, type StepKind } from "@/lib/git/ciPipelineLogic";
 import type { CiStatus, CiView } from "@/lib/git/ciPipeline";
 import { cn } from "@/lib/utils";
+import { useUnsavedWarning } from "@/lib/client/unsaved";
 
 const STATE_ICON: Record<NodeState, React.ComponentType<{ size?: number; className?: string }>> = {
   idle: Circle,
@@ -159,6 +160,9 @@ export function CiPanel({ projectId, canEdit }: { projectId: string; canEdit: bo
     setSteps(next);
     setPalette(null);
   };
+
+  // Eine halbfertige Pipeline ist schnell verloren – beim Weggehen fragen (#205)
+  useUnsavedWarning(`ci-${projectId}`, Boolean(draft && view && JSON.stringify(withPush(draft)) !== JSON.stringify(view.pipeline)));
 
   const scheduleMode = !draft?.triggers.schedule ? "off" : draft.triggers.schedule === SCHEDULES.daily ? "daily" : draft.triggers.schedule === SCHEDULES.weekly ? "weekly" : "custom";
   const nodes = status?.nodes ?? {};
