@@ -28,6 +28,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.6.9",
+    date: "2026-09-25",
+    title: "Repo-Check meldet nur noch echte Aussetzer",
+    titleEn: "Repo check only reports real breakdowns",
+    changes: [
+      {
+        type: "fix",
+        text: "„Ein Prüfwerkzeug ist abgebrochen“ stand auch dann da, wenn das Werkzeug in Wahrheit etwas gefunden hatte – manche melden einen Fund über denselben Weg wie einen Fehler. Jetzt zählt, ob Ergebnisse da sind",
+        en: "“A scanning tool broke off” also appeared when the tool had in fact found something – some report a finding the same way as an error. Now what counts is whether results are there",
+      },
+      {
+        type: "besser",
+        text: "Die Prüf-Container werden vorab und mit zweitem Anlauf geladen. Ein kurzer Aussetzer beim Laden hat vorher einen ganzen Prüfschritt gekostet",
+        en: "The scanning containers are fetched up front, with a second attempt. A brief hiccup while fetching previously cost an entire scanning step",
+      },
+    ],
+  },
+  {
     version: "1.6.8",
     date: "2026-09-25",
     title: "Kein stiller Verlust angefangener Arbeit",
