@@ -1,6 +1,6 @@
 {
   "name": "vibeworks",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "private": true,
   "description": "VibeWorks – selbst gehostetes Kontrollzentrum für Vibe-Coding-Projekte",
   "scripts": {
@@ -29,8 +29,8 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@simplewebauthn/browser": "^14.0.0",
-    "@simplewebauthn/server": "^14.0.2",
-    "dotenv": "^18.0.3",
+    "@simplewebauthn/server": "^14.0.3",
+    "dotenv": "^18.0.4",
     "electron": "^44.4.5",
     "lucide-react": "^1.48.0",
     "next": "^16.3.6",
@@ -46,7 +46,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.3",
     "@types/nodemailer": "^8.0.2",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
@@ -56,7 +56,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "overrides": {
     "postcss": "^8.5.28",

@@ -28,6 +28,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.3",
+    date: "2026-09-26",
+    title: "Vier Bausteine auf den neuesten Stand gebracht",
+    titleEn: "Four building blocks brought up to date",
+    changes: [
+      {
+        type: "besser",
+        text: "Anmeldung mit Passkey, Typen für Node, das Einlesen der Einstellungen und der Testlauf nutzen jetzt die neuesten Fassungen ihrer Bausteine (@simplewebauthn/server 14.0.3, @types/node 26.6.3, dotenv 18.0.4, vitest 5.0.2) – reine Wartung, sichtbar ändert sich nichts",
+        en: "Passkey sign-in, Node types, reading the settings and the test run now use the latest versions of their building blocks (@simplewebauthn/server 14.0.3, @types/node 26.6.3, dotenv 18.0.4, vitest 5.0.2) – pure maintenance, nothing changes visibly",
+      },
+    ],
+  },
+  {
     version: "1.7.2",
     date: "2026-09-26",
     title: "Leinwand in den Docs: Zettel, Formen und Texte frei anordnen",
