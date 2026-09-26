@@ -28,6 +28,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.4",
+    date: "2026-09-26",
+    title: "Bilder auf der Leinwand",
+    titleEn: "Images on the canvas",
+    changes: [
+      {
+        type: "neu",
+        text: "Auf eine Leinwand kannst du jetzt Bilder legen: über den Knopf in der Werkzeugleiste, per Ziehen auf die Fläche oder mit Strg+V aus der Zwischenablage. Bewegte GIFs laufen von allein",
+        en: "You can now put images on a canvas: via the button in the toolbar, by dragging them onto the surface, or with Ctrl+V from the clipboard. Animated GIFs play by themselves",
+        link: "/docs",
+      },
+      {
+        type: "besser",
+        text: "Ein neues Bild bekommt gleich die passende Form – die längste Kante misst 280 Punkte, das Seitenverhältnis bleibt. Größe ändern und Verschieben gehen wie bei allen anderen Elementen, am Rechner und mit dem Finger",
+        en: "A new image gets the right shape straight away – the longest edge is 280 points and the aspect ratio stays. Resizing and moving work like for every other element, on a computer and with your finger",
+      },
+      {
+        type: "besser",
+        text: "Gespeichert wird nur die Kennung des Bildes, nie eine Adresse: Von einer Leinwand kann dadurch nichts Fremdes nachgeladen werden. Leinwand-Bilder zählen getrennt von den Hintergrundbildern und tauchen nicht im Design-Editor auf",
+        en: "Only the image's identifier is stored, never an address: that way nothing external can be loaded from a canvas. Canvas images count separately from background images and don't show up in the design editor",
+      },
+    ],
+  },
+  {
     version: "1.7.3",
     date: "2026-09-26",
     title: "Vier Bausteine auf den neuesten Stand gebracht",

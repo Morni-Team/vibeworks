@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardBounds, BOARD_MAX, BOARD_MAX_ITEMS, boardId, freeSpot, moveItem, newBoardItem, parseBoard, resizeItem, serializeBoard } from "./boardLogic";
+import { boardBounds, BOARD_MAX, BOARD_MAX_ITEMS, boardId, freeSpot, imageBox, moveItem, newBoardItem, parseBoard, resizeItem, serializeBoard } from "./boardLogic";
 
 describe("Leinwand (#211)", () => {
   it("legt ein neues Element um den Zeigepunkt herum an", () => {
@@ -28,6 +28,24 @@ describe("Leinwand (#211)", () => {
     expect(board.items[1]).toMatchObject({ x: 0, y: 0, w: 24, h: 4000, text: "", color: "gray" });
   });
 
+  it("nimmt Bilder nur mit brauchbarer Upload-Kennung", () => {
+    const board = parseBoard({
+      items: [
+        { id: "a", kind: "image", x: 0, y: 0, upload: "cmtvgjiz00000hkn8oll4jpir" },
+        { id: "b", kind: "image", x: 0, y: 0 },
+        { id: "c", kind: "image", x: 0, y: 0, upload: "../../etc/passwd" },
+        { id: "d", kind: "image", x: 0, y: 0, upload: "https://fremde.seite/bild.png" },
+      ],
+    });
+    expect(board.items.map((i) => i.id)).toEqual(["a"]);
+    expect(board.items[0].upload).toBe("cmtvgjiz00000hkn8oll4jpir");
+  });
+
+  it("legt ein Bild mit seiner Kennung an – ohne Kennung bleibt das Feld leer", () => {
+    expect(newBoardItem("image", { x: 0, y: 0 }, "x", "cmtvgjiz00000hkn8oll4jpir")).toMatchObject({ w: 260, h: 180, upload: "cmtvgjiz00000hkn8oll4jpir" });
+    expect(newBoardItem("image", { x: 0, y: 0 }, "x", "kaputt/pfad").upload).toBeUndefined();
+  });
+
   it("liest auch eine gespeicherte Zeichenkette und verträgt Müll", () => {
     expect(parseBoard('{"items":[{"id":"x","kind":"text","x":1,"y":2}]}').items).toHaveLength(1);
     expect(parseBoard("kein json").items).toEqual([]);
@@ -38,6 +56,15 @@ describe("Leinwand (#211)", () => {
   it("nimmt höchstens die erlaubte Zahl an Elementen", () => {
     const viele = { items: Array.from({ length: BOARD_MAX_ITEMS + 50 }, (_, i) => ({ id: `i${i}`, kind: "note", x: i, y: i })) };
     expect(parseBoard(viele).items).toHaveLength(BOARD_MAX_ITEMS);
+  });
+
+  it("behält beim Bild das Seitenverhältnis", () => {
+    expect(imageBox(1600, 900)).toEqual({ w: 280, h: 158 });
+    expect(imageBox(600, 1200)).toEqual({ w: 140, h: 280 });
+    expect(imageBox(40, 40)).toEqual({ w: 280, h: 280 });
+    // Unbrauchbare Maße ergeben die Standardgröße
+    expect(imageBox(0, 0)).toEqual({ w: 260, h: 180 });
+    expect(imageBox(NaN, 100)).toEqual({ w: 260, h: 180 });
   });
 
   it("weicht freien Platz aus, statt Elemente zu überdecken", () => {

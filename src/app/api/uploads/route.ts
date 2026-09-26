@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { ApiError, json, route } from "@/lib/api";
 import { requireApiUser } from "@/lib/auth/guard";
-import { MAX_UPLOAD_BYTES, MAX_UPLOADS_PER_USER, saveUpload, sniffImage } from "@/lib/uploads";
+import { MAX_BOARD_UPLOADS_PER_USER, MAX_UPLOAD_BYTES, MAX_UPLOADS_PER_USER, saveUpload, sniffImage } from "@/lib/uploads";
 import { limitOrThrow, MINUTE } from "@/lib/security/rateLimit";
 import { tk } from "@/lib/i18n/messages";
 
@@ -27,12 +27,16 @@ export const POST = route(async (req) => {
     throw new ApiError(415, tk("theme", "errors.multipartExpected"));
   }
 
-  const count = await db.upload.count({ where: { userId: user.id, kind: "background" } });
-  if (count >= MAX_UPLOADS_PER_USER) {
-    throw new ApiError(409, tk("theme", "errors.tooManyImages", { n: MAX_UPLOADS_PER_USER }));
+  const form = await req.formData().catch(() => null);
+  // "board" sind Bilder auf einer Leinwand (#211); sie zählen getrennt von den
+  // Hintergründen und tauchen deshalb nicht im Design-Editor auf.
+  const usage = form?.get("usage") === "board" ? "board" : "background";
+  const max = usage === "board" ? MAX_BOARD_UPLOADS_PER_USER : MAX_UPLOADS_PER_USER;
+  const count = await db.upload.count({ where: { userId: user.id, kind: usage } });
+  if (count >= max) {
+    throw new ApiError(409, tk("theme", "errors.tooManyImages", { n: max }));
   }
 
-  const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) throw new ApiError(400, tk("theme", "errors.noFile"));
   if (file.size > MAX_UPLOAD_BYTES) throw new ApiError(413, tk("theme", "errors.imageTooLarge"));
@@ -41,6 +45,6 @@ export const POST = route(async (req) => {
   const kind = sniffImage(buf);
   if (!kind) throw new ApiError(415, tk("theme", "errors.imageFormat"));
 
-  const upload = await saveUpload(user.id, buf, kind);
+  const upload = await saveUpload(user.id, buf, kind, usage);
   return json({ upload: { id: upload.id, size: upload.size, mime: upload.mime, createdAt: upload.createdAt } }, { status: 201 });
 });

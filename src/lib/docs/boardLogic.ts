@@ -5,7 +5,7 @@
 // Gespeichert wird der Inhalt als JSON im Dokument. Er kommt aus dem Browser
 // und wird deshalb beim Lesen streng auf erwartete Werte gebracht.
 
-export const BOARD_ITEM_KINDS = ["note", "text", "rect", "ellipse", "line"] as const;
+export const BOARD_ITEM_KINDS = ["note", "text", "rect", "ellipse", "line", "image"] as const;
 export type BoardItemKind = (typeof BOARD_ITEM_KINDS)[number];
 
 export const BOARD_COLORS = ["yellow", "green", "blue", "violet", "red", "gray"] as const;
@@ -20,6 +20,9 @@ export interface BoardItem {
   h: number;
   text: string;
   color: BoardColor;
+  /** Nur bei Bildern: die Kennung des Uploads. Ausgeliefert wird über /api/uploads/<id> –
+   *  bewusst keine freie Adresse, damit von der Leinwand nichts Fremdes nachgeladen wird. */
+  upload?: string;
 }
 
 export interface Board {
@@ -39,10 +42,15 @@ const clamp = (v: unknown, min: number, max: number, fallback: number): number =
   return Math.min(max, Math.max(min, n));
 };
 
+/** Kennung eines Uploads – dieselbe Form wie in src/lib/uploads.ts, hier ohne Server-Abhängigkeit. */
+const UPLOAD_ID = /^[a-z0-9]{8,40}$/;
+export const isBoardUpload = (v: unknown): v is string => typeof v === "string" && UPLOAD_ID.test(v);
+
 /** Neues Element in der Mitte des Blicks – Größe passend zur Art. */
-export function newBoardItem(kind: BoardItemKind, at: { x: number; y: number }, id: string): BoardItem {
+export function newBoardItem(kind: BoardItemKind, at: { x: number; y: number }, id: string, upload?: string): BoardItem {
   const size =
     kind === "note" ? { w: 180, h: 140 }
+    : kind === "image" ? { w: 260, h: 180 }
     : kind === "text" ? { w: 240, h: 60 }
     : kind === "line" ? { w: 200, h: 2 }
     : { w: 200, h: 140 };
@@ -54,6 +62,7 @@ export function newBoardItem(kind: BoardItemKind, at: { x: number; y: number }, 
     ...size,
     text: "",
     color: kind === "note" ? "yellow" : "gray",
+    ...(kind === "image" && isBoardUpload(upload) ? { upload } : {}),
   };
 }
 
@@ -68,7 +77,10 @@ export function parseBoard(raw: unknown): Board {
     const kind = BOARD_ITEM_KINDS.includes(o.kind as BoardItemKind) ? (o.kind as BoardItemKind) : null;
     const id = typeof o.id === "string" && o.id.length > 0 && o.id.length <= 40 ? o.id : null;
     if (!kind || !id) continue;
+    // Ein Bild ohne brauchbare Kennung zeigt nichts – es fällt weg statt als Loch stehen zu bleiben.
+    if (kind === "image" && !isBoardUpload(o.upload)) continue;
     items.push({
+      ...(kind === "image" ? { upload: o.upload as string } : {}),
       id,
       kind,
       x: clamp(o.x, BOARD_MIN, BOARD_MAX, 0),
@@ -139,4 +151,17 @@ export function freeSpot(items: BoardItem[], item: BoardItem): BoardItem {
     y = clamp(y + 24, BOARD_MIN, BOARD_MAX, y);
   }
   return { ...item, x, y };
+}
+
+/**
+ * Größe für ein neues Bild: längste Kante 280, Seitenverhältnis bleibt.
+ * Ohne brauchbare Maße bleibt es bei der Standardgröße.
+ */
+export function imageBox(width: number, height: number): { w: number; h: number } {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) return { w: 260, h: 180 };
+  const faktor = 280 / Math.max(width, height);
+  return {
+    w: clamp(width * faktor, BOARD_MIN_SIZE, BOARD_MAX_SIZE, 260),
+    h: clamp(height * faktor, BOARD_MIN_SIZE, BOARD_MAX_SIZE, 180),
+  };
 }

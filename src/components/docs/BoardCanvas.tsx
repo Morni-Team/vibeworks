@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Circle, Copy, Maximize2, Minus, Pencil, Plus, Square, StickyNote, Trash2, Type } from "lucide-react";
+import { Circle, Copy, ImagePlus, Maximize2, Minus, Pencil, Plus, Square, StickyNote, Trash2, Type } from "lucide-react";
 import {
   BOARD_COLORS,
   BOARD_ITEM_KINDS,
@@ -12,6 +12,8 @@ import {
   boardBounds,
   boardId,
   freeSpot,
+  imageBox,
+  isBoardUpload,
   moveItem,
   newBoardItem,
   parseBoard,
@@ -29,7 +31,9 @@ import { useT } from "@/lib/i18n/client";
 // setPointerCapture): das trägt Maus und Finger gleich gut und hält auch, wenn
 // der Zeiger das Element verlässt. Zwei Finger zoomen über die Touch-Ereignisse.
 
-const ICONS: Record<BoardItemKind, typeof StickyNote> = { note: StickyNote, text: Type, rect: Square, ellipse: Circle, line: Minus };
+const ICONS: Record<BoardItemKind, typeof StickyNote> = { note: StickyNote, text: Type, rect: Square, ellipse: Circle, line: Minus, image: ImagePlus };
+/** In der Werkzeugleiste ohne „Bild“ – das kommt über die Dateiauswahl daneben. */
+const DRAW_KINDS = BOARD_ITEM_KINDS.filter((k) => k !== "image");
 
 const STYLE: Record<BoardColor, { fill: string; ink: string; border: string; soft: string; tint: string; bar: string; dot: string }> = {
   yellow: { fill: "bg-amber-300", ink: "text-neutral-900", border: "border-amber-400", soft: "bg-amber-400/15", tint: "text-amber-300", bar: "bg-amber-400", dot: "bg-amber-300" },
@@ -40,6 +44,8 @@ const STYLE: Record<BoardColor, { fill: string; ink: string; border: string; sof
   gray: { fill: "bg-slate-300", ink: "text-neutral-900", border: "border-slate-400", soft: "bg-slate-400/15", tint: "text-slate-300", bar: "bg-slate-400", dot: "bg-slate-300" },
 };
 
+/** Dasselbe Maß wie beim Hintergrundbild – der Server lehnt Größeres ohnehin ab. */
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 3;
 type View = { x: number; y: number; z: number };
@@ -54,7 +60,11 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
   const [sel, setSel] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [view, setView] = useState<View>({ x: 40, y: 40, z: 1 });
+  const [busy, setBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dropping, setDropping] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const viewRef = useRef(view);
@@ -87,12 +97,64 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
     return toBoard((box?.left ?? 0) + (box?.width ?? 600) / 2, (box?.top ?? 0) + (box?.height ?? 400) / 2);
   }, [toBoard]);
 
-  function add(kind: BoardItemKind) {
+  function add(kind: BoardItemKind, at?: { x: number; y: number }, upload?: string, box?: { w: number; h: number }) {
     if (itemsRef.current.length >= BOARD_MAX_ITEMS) return;
-    const item = freeSpot(itemsRef.current, newBoardItem(kind, center(), boardId()));
+    const neu = newBoardItem(kind, at ?? center(), boardId(), upload);
+    const item = freeSpot(itemsRef.current, box ? { ...neu, ...box, x: neu.x + (neu.w - box.w) / 2, y: neu.y + (neu.h - box.h) / 2 } : neu);
     apply([...itemsRef.current, item]);
     setSel(item.id);
     if (kind === "note" || kind === "text") setEditing(item.id);
+  }
+
+  // ── Bilder: hochladen, dann als Element ablegen ─────────
+  /**
+   * Das Bild geht über den vorhandenen Upload-Weg (`kind: "board"`, zählt
+   * getrennt von den Hintergründen). Gespeichert wird nur die Kennung –
+   * ausgeliefert wird über `/api/uploads/<id>`, also nichts Fremdes.
+   */
+  async function addImages(files: File[], at?: { x: number; y: number }) {
+    const bilder = files.filter((f) => f.type.startsWith("image/")).slice(0, 10);
+    if (!bilder.length) return;
+    setBusy(true);
+    setUploadError(null);
+    let versatz = 0;
+    for (const datei of bilder) {
+      try {
+        if (datei.size > MAX_IMAGE_BYTES) throw new Error(t("editor.board.uploadFailed"));
+        // Erst messen, dann senden – nach dem Senden ist der Inhalt nicht mehr sicher lesbar.
+        const box = await measure(datei);
+        const form = new FormData();
+        form.append("file", datei);
+        form.append("usage", "board");
+        const res = await fetch("/api/uploads", { method: "POST", body: form, credentials: "same-origin" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !isBoardUpload(data?.upload?.id)) throw new Error(data?.error ?? t("editor.board.uploadFailed"));
+        const punkt = at ? { x: at.x + versatz, y: at.y + versatz } : undefined;
+        add("image", punkt, data.upload.id, box);
+        versatz += 24;
+      } catch (e) {
+        setUploadError(e instanceof Error ? e.message : t("editor.board.uploadFailed"));
+        break;
+      }
+    }
+    setBusy(false);
+    if (fileInput.current) fileInput.current.value = "";
+  }
+
+  function chooseImage() {
+    fileInput.current?.click();
+  }
+
+  /** Maße des Bildes, damit es nicht verzerrt in einem Standardkasten sitzt. */
+  async function measure(datei: File): Promise<{ w: number; h: number }> {
+    try {
+      const bitmap = await createImageBitmap(datei);
+      const box = imageBox(bitmap.width, bitmap.height);
+      bitmap.close();
+      return box;
+    } catch {
+      return imageBox(0, 0);
+    }
   }
 
   function duplicate(item: BoardItem) {
@@ -235,6 +297,20 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sel, editing]);
 
+  // Bild aus der Zwischenablage einfügen – nur, solange kein Text bearbeitet wird.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (editing) return;
+      const dateien = Array.from(e.clipboardData?.files ?? []);
+      if (!dateien.length) return;
+      e.preventDefault();
+      void addImages(dateien);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+
   const grip = 14 / view.z;
 
   return (
@@ -242,7 +318,7 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
       {/* Werkzeuge */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-lg border bg-bg/40 p-0.5" role="toolbar" aria-label={t("editor.board.add")}>
-          {BOARD_ITEM_KINDS.map((kind) => {
+          {DRAW_KINDS.map((kind) => {
             const Icon = ICONS[kind];
             return (
               <button
@@ -258,6 +334,25 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
               </button>
             );
           })}
+          <button
+            type="button"
+            data-board-add="image"
+            className="rounded-md p-1.5 text-muted hover:bg-fg/10 hover:text-fg disabled:opacity-40"
+            onClick={chooseImage}
+            disabled={busy}
+            title={t("editor.board.addImage")}
+            aria-label={t("editor.board.addImage")}
+          >
+            <ImagePlus size={16} />
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp,image/avif"
+            multiple
+            hidden
+            onChange={(e) => void addImages(Array.from(e.target.files ?? []))}
+          />
         </div>
         <div className="flex items-center rounded-lg border bg-bg/40 p-0.5">
           <button type="button" className="rounded-md p-1.5 text-muted hover:bg-fg/10 hover:text-fg" onClick={() => zoomAt(1 / 1.2)} title={t("editor.board.zoomOut")} aria-label={t("editor.board.zoomOut")}>
@@ -273,6 +368,8 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
         </div>
         {selected && (
           <div className="fade-in flex flex-wrap items-center gap-2">
+            {/* Ein Bild hat keine eigene Farbe. */}
+            {selected.kind !== "image" && (
             <div className="flex rounded-lg border bg-bg/40 p-0.5" aria-label={t("editor.board.color")}>
               {BOARD_COLORS.map((c) => (
                 <button
@@ -286,8 +383,9 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
                 />
               ))}
             </div>
+            )}
             <div className="flex rounded-lg border bg-bg/40 p-0.5">
-              {selected.kind !== "line" && (
+              {selected.kind !== "line" && selected.kind !== "image" && (
                 <button type="button" data-board-edit className="rounded-md p-1.5 text-muted hover:bg-fg/10 hover:text-fg" onClick={() => setEditing(selected.id)} title={t("editor.board.edit")} aria-label={t("editor.board.edit")}>
                   <Pencil size={15} />
                 </button>
@@ -301,14 +399,28 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
             </div>
           </div>
         )}
-        <span className="ml-auto text-xs text-muted">{t("editor.board.items", { n: items.length })}</span>
+        <span className="ml-auto text-xs text-muted">
+          {busy ? t("editor.board.uploading") : t("editor.board.items", { n: items.length })}
+        </span>
       </div>
 
       {/* Fläche */}
       <div
         ref={wrap}
         data-board-canvas
-        className="relative h-[60vh] min-h-80 touch-none select-none overflow-hidden rounded-xl border bg-bg/30"
+        className={cn("relative h-[60vh] min-h-80 touch-none select-none overflow-hidden rounded-xl border bg-bg/30", dropping && "border-accent")}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes("Files")) return;
+          e.preventDefault();
+          setDropping(true);
+        }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={(e) => {
+          if (!e.dataTransfer.files.length) return;
+          e.preventDefault();
+          setDropping(false);
+          void addImages(Array.from(e.dataTransfer.files), toBoard(e.clientX, e.clientY));
+        }}
         style={{
           backgroundImage: "radial-gradient(rgb(148 163 184 / 0.25) 1px, transparent 1px)",
           backgroundSize: `${24 * view.z}px ${24 * view.z}px`,
@@ -338,6 +450,7 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
                   item.kind === "rect" && cn("rounded-lg border-2 p-2", s.border, s.soft),
                   item.kind === "ellipse" && cn("rounded-[50%] border-2 p-2", s.border, s.soft),
                   item.kind === "line" && cn("rounded-full", s.bar),
+                  item.kind === "image" && "overflow-hidden rounded-lg bg-fg/5 shadow-lg",
                   active && "outline-2 outline-offset-2 outline-accent",
                 )}
                 style={{ left: item.x, top: item.y, width: item.w, height: item.h }}
@@ -355,7 +468,15 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
               >
                 {/* Linien sind dünn – diese Fläche macht sie treffbar. */}
                 {item.kind === "line" && <span className="absolute -inset-y-2 inset-x-0" />}
-                {editing === item.id ?
+                {item.kind === "image" && item.upload ?
+                  // eslint-disable-next-line @next/next/no-img-element -- eigener Upload, feste Größe auf der Fläche
+                  <img
+                    src={`/api/uploads/${encodeURIComponent(item.upload)}`}
+                    alt={item.text || t("editor.board.imageAlt")}
+                    className="pointer-events-none h-full w-full object-contain"
+                    draggable={false}
+                  />
+                : editing === item.id ?
                   <textarea
                     autoFocus
                     data-board-text
@@ -367,7 +488,7 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
                     placeholder={t("editor.board.textPlaceholder")}
                     aria-label={t("editor.board.textLabel")}
                   />
-                : item.kind !== "line" ?
+                : item.kind !== "line" && item.kind !== "image" ?
                   <p className={cn("h-full overflow-hidden whitespace-pre-wrap break-words text-[14px] leading-snug", (item.kind === "rect" || item.kind === "ellipse") && "flex items-center justify-center text-center")}>
                     {item.text}
                   </p>
@@ -388,10 +509,16 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
             );
           })}
         </div>
-        {items.length === 0 && (
+        {items.length === 0 && !dropping && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted">{t("editor.board.empty")}</p>
         )}
+        {dropping && (
+          <p className="pointer-events-none absolute inset-0 flex items-center justify-center bg-accent/10 p-6 text-center text-sm font-medium">{t("editor.board.dropHere")}</p>
+        )}
       </div>
+      {uploadError && (
+        <p role="alert" data-board-error className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{uploadError}</p>
+      )}
       <p className="text-xs text-muted">{t("editor.board.hint")}</p>
     </div>
   );

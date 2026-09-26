@@ -9,6 +9,8 @@ import { db } from "./db";
 
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 export const MAX_UPLOADS_PER_USER = 24;
+/** Bilder auf Leinwänden zählen getrennt – eine Leinwand lebt von vielen kleinen Bildern. */
+export const MAX_BOARD_UPLOADS_PER_USER = 200;
 
 export interface ImageKind {
   mime: string;
@@ -40,8 +42,8 @@ function filePath(id: string, ext: string): string {
   return path.join(config.uploadDir, `${id}.${ext}`);
 }
 
-/** usage: "background" (Design-Editor) oder "cover" (Vorschaubild der Live-Seite) */
-export async function saveUpload(userId: string, buf: Uint8Array, kind: ImageKind, usage: "background" | "cover" = "background") {
+/** usage: "background" (Design-Editor), "cover" (Vorschaubild der Live-Seite) oder "board" (Leinwand) */
+export async function saveUpload(userId: string, buf: Uint8Array, kind: ImageKind, usage: "background" | "cover" | "board" = "background") {
   await mkdir(config.uploadDir, { recursive: true });
   const upload = await db.upload.create({
     data: { userId, kind: usage, mime: kind.mime, ext: kind.ext, size: buf.length },
