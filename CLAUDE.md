@@ -116,6 +116,26 @@ Neue Issues sofort übernehmen, nicht sammeln. Für durchgehendes Arbeiten (z.B.
 einen echten Zeitplan anlegen, der die Runde regelmäßig startet – eine laufende Sitzung
 allein arbeitet nicht von selbst weiter.
 
+### Zeiten und schonender Umgang mit Rechenzeit (#210)
+
+Feste Runden: **8:23 und 19:47 Uhr**, dazu jederzeit, wenn Moini anstößt.
+Zwischen 23 und 7 Uhr läuft keine Runde.
+
+Jede Runde und jede lange Sitzung kostet Rechenzeit auf Moinis Konto – der ganze
+bisherige Verlauf wird bei jeder Nachricht erneut mitgeschickt. Deshalb:
+
+- **Früh aufhören.** Steht nichts Neues an und ist nichts offen, endet die Runde still –
+  keine Benachrichtigung, keine Beschäftigung suchen.
+- **Höchstens ein Update pro Runde**, außer es brennt (rote CI, kaputte Anmeldung, Datenverlust).
+- **Gezielt lesen:** erst `grep` und Zeilenbereiche, dann ganze Dateien. Keine Ordner
+  „zur Sicherheit“ durchgehen.
+- **Breite Suchen an einen Nebenagenten geben** – der arbeitet in eigenem Kopf und
+  belastet die laufende Sitzung nicht.
+- **Nach einem fertigen Update die Sitzung beenden**, statt sie offen weiterlaufen zu lassen.
+- **Lange Ausgaben in den Arbeitsordner schreiben**, nicht in die Antwort.
+- **Nicht in Schleifen warten und nachsehen** – auf Ereignisse warten statt zu pollen.
+- **Diese Datei kurz halten.** Sie geht bei jeder Nachricht mit.
+
 ### Labels
 
 | Label | Bedeutung |
