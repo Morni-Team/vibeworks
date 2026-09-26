@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardBounds, BOARD_MAX, BOARD_MAX_ITEMS, boardId, freeSpot, imageBox, moveItem, newBoardItem, parseBoard, resizeItem, serializeBoard } from "./boardLogic";
+import { boardBounds, BOARD_MAX, BOARD_MAX_ITEMS, boardId, freeSpot, hitsStroke, imageBox, moveItem, newBoardItem, parseBoard, resizeItem, serializeBoard, strokeBounds, strokeItem } from "./boardLogic";
 
 describe("Leinwand (#211)", () => {
   it("legt ein neues Element um den Zeigepunkt herum an", () => {
@@ -104,5 +104,50 @@ describe("Leinwand (#211)", () => {
     const b = boardBounds(items)!;
     expect(b.x).toBe(Math.min(items[0].x, items[1].x));
     expect(b.w).toBeGreaterThan(300);
+  });
+});
+
+describe("Freihand (#211 Schritt 3)", () => {
+  it("macht aus gezeichneten Punkten ein Element mit eigenem Rahmen", () => {
+    const strich = strokeItem([{ x: 100, y: 100 }, { x: 140, y: 130 }, { x: 180, y: 100 }], "s1", "blue", 4)!;
+    expect(strich.kind).toBe("ink");
+    // Der Rahmen bekommt die Strichstärke als Luft – links/oben abgezogen, rechts/unten dazu
+    expect(strich.x).toBe(96);
+    expect(strich.y).toBe(96);
+    expect(strich.w).toBe(88);
+    expect(strich.points).toEqual([4, 4, 44, 34, 84, 4]);
+    expect(strich.size).toBe(4);
+  });
+
+  it("wirft ein bloßes Tippen weg", () => {
+    expect(strokeItem([{ x: 10, y: 10 }], "s2", "red", 4)).toBeNull();
+    expect(strokeItem([], "s3", "red", 4)).toBeNull();
+  });
+
+  it("liest Striche streng ein – kaputte Punkte fallen weg", () => {
+    const gut = { id: "a", kind: "ink", x: 0, y: 0, w: 100, h: 50, points: [0, 0, 50, 25, 100, 50], size: 8, marker: true };
+    const board = parseBoard({
+      items: [
+        gut,
+        { id: "b", kind: "ink", x: 0, y: 0, points: [1, 2] },
+        { id: "c", kind: "ink", x: 0, y: 0, points: ["hier", 2, 3, 4] },
+        { id: "d", kind: "ink", x: 0, y: 0 },
+      ],
+    });
+    expect(board.items.map((i) => i.id)).toEqual(["a"]);
+    expect(board.items[0]).toMatchObject({ points: [0, 0, 50, 25, 100, 50], size: 8, marker: true });
+  });
+
+  it("findet den Strich unter dem Radierer – und lässt Entferntes in Ruhe", () => {
+    const strich = strokeItem([{ x: 200, y: 200 }, { x: 300, y: 200 }], "s4", "red", 4)!;
+    expect(hitsStroke(strich, 250, 200, 6)).toBe(true);
+    expect(hitsStroke(strich, 250, 260, 6)).toBe(false);
+    // Andere Arten trifft der Radierer nicht
+    expect(hitsStroke(newBoardItem("note", { x: 250, y: 200 }, "n"), 250, 200, 6)).toBe(false);
+  });
+
+  it("nennt den Maßstab eines Strichs", () => {
+    expect(strokeBounds([0, 0, 30, 60])).toEqual({ w: 30, h: 60 });
+    expect(strokeBounds([])).toEqual({ w: 1, h: 1 });
   });
 });

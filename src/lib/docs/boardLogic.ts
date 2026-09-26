@@ -5,7 +5,7 @@
 // Gespeichert wird der Inhalt als JSON im Dokument. Er kommt aus dem Browser
 // und wird deshalb beim Lesen streng auf erwartete Werte gebracht.
 
-export const BOARD_ITEM_KINDS = ["note", "text", "rect", "ellipse", "line", "image"] as const;
+export const BOARD_ITEM_KINDS = ["note", "text", "rect", "ellipse", "line", "image", "ink"] as const;
 export type BoardItemKind = (typeof BOARD_ITEM_KINDS)[number];
 
 export const BOARD_COLORS = ["yellow", "green", "blue", "violet", "red", "gray"] as const;
@@ -23,6 +23,12 @@ export interface BoardItem {
   /** Nur bei Bildern: die Kennung des Uploads. Ausgeliefert wird über /api/uploads/<id> –
    *  bewusst keine freie Adresse, damit von der Leinwand nichts Fremdes nachgeladen wird. */
   upload?: string;
+  /** Nur bei Freihandstrichen: Punktepaare x,y – gezählt ab der linken oberen Ecke des Elements. */
+  points?: number[];
+  /** Strichstärke eines Freihandstrichs. */
+  size?: number;
+  /** Freihand als Marker: dicker und durchscheinend. */
+  marker?: boolean;
 }
 
 export interface Board {
@@ -36,6 +42,9 @@ const BOARD_MIN_SIZE = 24;
 const BOARD_MAX_SIZE = 4_000;
 export const BOARD_MAX_ITEMS = 500;
 const BOARD_MAX_TEXT = 4_000;
+/** Punkte je Strich – mehr braucht keine Linie, und es hält den Inhalt klein. */
+const BOARD_MAX_POINTS = 400;
+export const BOARD_STROKE_SIZES = [2, 4, 8, 16] as const;
 
 const clamp = (v: unknown, min: number, max: number, fallback: number): number => {
   const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : fallback;
@@ -79,8 +88,12 @@ export function parseBoard(raw: unknown): Board {
     if (!kind || !id) continue;
     // Ein Bild ohne brauchbare Kennung zeigt nichts – es fällt weg statt als Loch stehen zu bleiben.
     if (kind === "image" && !isBoardUpload(o.upload)) continue;
+    // Ein Strich ohne Punkte ebenso.
+    const points = kind === "ink" ? readPoints(o.points) : null;
+    if (kind === "ink" && !points) continue;
     items.push({
       ...(kind === "image" ? { upload: o.upload as string } : {}),
+      ...(points ? { points, size: clamp(o.size, 1, 64, 4), ...(o.marker === true ? { marker: true } : {}) } : {}),
       id,
       kind,
       x: clamp(o.x, BOARD_MIN, BOARD_MAX, 0),
@@ -92,6 +105,18 @@ export function parseBoard(raw: unknown): Board {
     });
   }
   return { items };
+}
+
+/** Punkte eines Strichs streng einlesen: gerade Anzahl, endliche Zahlen, begrenzt. */
+function readPoints(raw: unknown): number[] | null {
+  if (!Array.isArray(raw) || raw.length < 4) return null;
+  const out: number[] = [];
+  for (const v of raw.slice(0, BOARD_MAX_POINTS * 2)) {
+    if (typeof v !== "number" || !Number.isFinite(v)) return null;
+    out.push(Math.round(Math.min(BOARD_MAX_SIZE, Math.max(0, v))));
+  }
+  if (out.length % 2 !== 0) out.pop();
+  return out.length >= 4 ? out : null;
 }
 
 function safeJson(raw: string): unknown {
@@ -164,4 +189,86 @@ export function imageBox(width: number, height: number): { w: number; h: number 
     w: clamp(width * faktor, BOARD_MIN_SIZE, BOARD_MAX_SIZE, 260),
     h: clamp(height * faktor, BOARD_MIN_SIZE, BOARD_MAX_SIZE, 180),
   };
+}
+
+// ── Freihand ────────────────────────────────────────────
+// Ein Strich ist ein eigenes Element: `points` liegen im Rahmen 0…w / 0…h,
+// gezeichnet wird als SVG. Dadurch verschiebt und skaliert er sich wie jedes
+// andere Element, ohne dass die Punkte neu gerechnet werden müssen.
+
+/** Rahmen, in dem die Punkte eines Strichs liegen – der Maßstab beim Zeichnen. */
+export function strokeBounds(points: number[]): { w: number; h: number } {
+  let w = 1;
+  let h = 1;
+  for (let i = 0; i + 1 < points.length; i += 2) {
+    w = Math.max(w, points[i]);
+    h = Math.max(h, points[i + 1]);
+  }
+  return { w, h };
+}
+
+/**
+ * Aus gezeichneten Punkten (Flächenkoordinaten) ein Element machen: Der Rahmen
+ * bekommt etwas Luft für die Strichstärke, die Punkte werden auf ihn bezogen.
+ * Zu kurze Striche (ein Tippen) ergeben `null`.
+ */
+export function strokeItem(
+  punkte: Array<{ x: number; y: number }>,
+  id: string,
+  color: BoardColor,
+  size: number,
+  marker = false,
+): BoardItem | null {
+  const genutzt = punkte.slice(0, BOARD_MAX_POINTS);
+  if (genutzt.length < 2) return null;
+  const luft = Math.max(2, size);
+  const minX = Math.min(...genutzt.map((p) => p.x)) - luft;
+  const minY = Math.min(...genutzt.map((p) => p.y)) - luft;
+  const maxX = Math.max(...genutzt.map((p) => p.x)) + luft;
+  const maxY = Math.max(...genutzt.map((p) => p.y)) + luft;
+  const w = clamp(maxX - minX, 1, BOARD_MAX_SIZE, 1);
+  const h = clamp(maxY - minY, 1, BOARD_MAX_SIZE, 1);
+  const points: number[] = [];
+  for (const p of genutzt) {
+    points.push(Math.round(clamp(p.x - minX, 0, w, 0)), Math.round(clamp(p.y - minY, 0, h, 0)));
+  }
+  return {
+    id,
+    kind: "ink",
+    x: clamp(minX, BOARD_MIN, BOARD_MAX, 0),
+    y: clamp(minY, BOARD_MIN, BOARD_MAX, 0),
+    w,
+    h,
+    text: "",
+    color,
+    points,
+    size: clamp(size, 1, 64, 4),
+    ...(marker ? { marker: true } : {}),
+  };
+}
+
+/** Abstand eines Punktes zur Strecke a–b – für den Radierer. */
+function distToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = dx * dx + dy * dy;
+  const t = len === 0 ? 0 : Math.min(1, Math.max(0, ((px - ax) * dx + (py - ay) * dy) / len));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** Liegt der Punkt (Flächenkoordinaten) nah genug an diesem Strich? */
+export function hitsStroke(item: BoardItem, x: number, y: number, radius: number): boolean {
+  if (item.kind !== "ink" || !item.points || item.points.length < 4) return false;
+  const box = strokeBounds(item.points);
+  const sx = item.w / box.w;
+  const sy = item.h / box.h;
+  const nah = radius + (item.size ?? 4) / 2;
+  for (let i = 0; i + 3 < item.points.length; i += 2) {
+    const ax = item.x + item.points[i] * sx;
+    const ay = item.y + item.points[i + 1] * sy;
+    const bx = item.x + item.points[i + 2] * sx;
+    const by = item.y + item.points[i + 3] * sy;
+    if (distToSegment(x, y, ax, ay, bx, by) <= nah) return true;
+  }
+  return false;
 }

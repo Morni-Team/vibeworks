@@ -28,6 +28,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.5",
+    date: "2026-09-26",
+    title: "Auf der Leinwand mit der Hand zeichnen",
+    titleEn: "Draw by hand on the canvas",
+    changes: [
+      {
+        type: "neu",
+        text: "Die Leinwand hat jetzt Stift, Marker und Radierer. Vier Strichstärken, sechs Farben, der Marker malt dicker und durchscheinend. Der Radierer nimmt ganze Striche weg, die er berührt",
+        en: "The canvas now has a pen, a marker and an eraser. Four stroke widths, six colours, and the marker paints thicker and translucent. The eraser removes whole strokes it touches",
+        link: "/docs",
+      },
+      {
+        type: "neu",
+        text: "Gezeichnet wird mit der Maus und mit dem Finger; zwei Finger verschieben weiterhin die Fläche. Jeder Strich ist ein eigenes Element – zurück im Auswählen-Modus lässt er sich verschieben und in der Größe ändern",
+        en: "You can draw with the mouse and with your finger; two fingers still move the surface. Every stroke is its own element – back in select mode you can move it and change its size",
+      },
+    ],
+  },
+  {
     version: "1.7.4",
     date: "2026-09-26",
     title: "Bilder auf der Leinwand",

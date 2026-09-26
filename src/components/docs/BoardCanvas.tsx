@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Circle, Copy, ImagePlus, Maximize2, Minus, Pencil, Plus, Square, StickyNote, Trash2, Type } from "lucide-react";
+import { Circle, Copy, Eraser, Highlighter, ImagePlus, Maximize2, Minus, MousePointer2, Pen, Pencil, Plus, Square, StickyNote, Trash2, Type } from "lucide-react";
 import {
   BOARD_COLORS,
   BOARD_ITEM_KINDS,
@@ -10,8 +10,10 @@ import {
   type BoardItem,
   type BoardItemKind,
   boardBounds,
+  BOARD_STROKE_SIZES,
   boardId,
   freeSpot,
+  hitsStroke,
   imageBox,
   isBoardUpload,
   moveItem,
@@ -19,6 +21,8 @@ import {
   parseBoard,
   resizeItem,
   serializeBoard,
+  strokeBounds,
+  strokeItem,
 } from "@/lib/docs/boardLogic";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n/client";
@@ -31,9 +35,23 @@ import { useT } from "@/lib/i18n/client";
 // setPointerCapture): das trägt Maus und Finger gleich gut und hält auch, wenn
 // der Zeiger das Element verlässt. Zwei Finger zoomen über die Touch-Ereignisse.
 
-const ICONS: Record<BoardItemKind, typeof StickyNote> = { note: StickyNote, text: Type, rect: Square, ellipse: Circle, line: Minus, image: ImagePlus };
+const ICONS: Record<BoardItemKind, typeof StickyNote> = { note: StickyNote, text: Type, rect: Square, ellipse: Circle, line: Minus, image: ImagePlus, ink: Pen };
+
+/** Zeigerwerkzeug: auswählen und schieben, malen oder wegradieren. */
+const TOOLS = ["select", "pen", "marker", "eraser"] as const;
+type Tool = (typeof TOOLS)[number];
+const TOOL_ICONS: Record<Tool, typeof StickyNote> = { select: MousePointer2, pen: Pen, marker: Highlighter, eraser: Eraser };
+/** Punktepaare als Angabe für ein SVG-polyline. */
+const pairs = (points: number[]): string => {
+  let out = "";
+  for (let i = 0; i + 1 < points.length; i += 2) out += `${points[i]},${points[i + 1]} `;
+  return out.trim();
+};
+
+/** Wie nah der Radierer treffen muss – in Flächenpunkten. */
+const ERASER_RADIUS = 10;
 /** In der Werkzeugleiste ohne „Bild“ – das kommt über die Dateiauswahl daneben. */
-const DRAW_KINDS = BOARD_ITEM_KINDS.filter((k) => k !== "image");
+const SHAPE_KINDS = BOARD_ITEM_KINDS.filter((k) => k !== "image" && k !== "ink");
 
 const STYLE: Record<BoardColor, { fill: string; ink: string; border: string; soft: string; tint: string; bar: string; dot: string }> = {
   yellow: { fill: "bg-amber-300", ink: "text-neutral-900", border: "border-amber-400", soft: "bg-amber-400/15", tint: "text-amber-300", bar: "bg-amber-400", dot: "bg-amber-300" },
@@ -63,6 +81,12 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
   const [busy, setBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
+  const [tool, setTool] = useState<Tool>("select");
+  const [stroke, setStroke] = useState(4);
+  const [color, setColor] = useState<BoardColor>("blue");
+  // Der Strich, der gerade gezogen wird – erst beim Loslassen wird ein Element daraus.
+  const [draft, setDraft] = useState<Array<{ x: number; y: number }> | null>(null);
+  const drawing = useRef<Array<{ x: number; y: number }> | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const itemsRef = useRef(items);
@@ -199,6 +223,63 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
     window.addEventListener("pointercancel", up);
   };
 
+  // ── Zeichnen und Radieren ───────────────────────────────
+  /** Malt einen Strich, solange der Zeiger unten ist; beim Loslassen wird ein Element daraus. */
+  function startStroke(cx: number, cy: number) {
+    const punkte = [toBoard(cx, cy)];
+    drawing.current = punkte;
+    setDraft([...punkte]);
+    const move = (e: PointerEvent) => {
+      const laufend = drawing.current;
+      if (!laufend) return;
+      const p = toBoard(e.clientX, e.clientY);
+      const letzter = laufend[laufend.length - 1];
+      // Nur wirkliche Bewegungen sammeln – das hält den gespeicherten Strich klein.
+      if (Math.hypot(p.x - letzter.x, p.y - letzter.y) < 2) return;
+      laufend.push(p);
+      setDraft([...laufend]);
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      const fertig = drawing.current;
+      drawing.current = null;
+      setDraft(null);
+      if (!fertig) return;
+      const item = strokeItem(fertig, boardId(), color, tool === "marker" ? stroke * 2 : stroke, tool === "marker");
+      if (item && itemsRef.current.length < BOARD_MAX_ITEMS) apply([...itemsRef.current, item]);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }
+
+  /** Radiert ganze Striche weg, die unter dem Zeiger liegen. */
+  function startErase(cx: number, cy: number) {
+    let etwasWeg = false;
+    const weg = (x: number, y: number) => {
+      const p = toBoard(x, y);
+      const rest = itemsRef.current.filter((i) => !hitsStroke(i, p.x, p.y, ERASER_RADIUS));
+      if (rest.length !== itemsRef.current.length) {
+        etwasWeg = true;
+        setItems(rest);
+        itemsRef.current = rest;
+      }
+    };
+    weg(cx, cy);
+    const move = (e: PointerEvent) => weg(e.clientX, e.clientY);
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+      if (etwasWeg) onChange(serializeBoard(itemsRef.current));
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }
+
   // ── Zoom: Rad mit Strg, zwei Finger, Knöpfe ─────────────
   const zoomAt = useCallback((factor: number, clientX?: number, clientY?: number) => {
     setView((v) => {
@@ -317,8 +398,64 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
     <div className="flex min-h-0 flex-col gap-2">
       {/* Werkzeuge */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-lg border bg-bg/40 p-0.5" role="toolbar" aria-label={t("editor.board.add")}>
-          {DRAW_KINDS.map((kind) => {
+        <div className="flex rounded-lg border bg-bg/40 p-0.5" role="radiogroup" aria-label={t("editor.board.label")}>
+          {TOOLS.map((w) => {
+            const Icon = TOOL_ICONS[w];
+            return (
+              <button
+                key={w}
+                type="button"
+                role="radio"
+                aria-checked={tool === w}
+                data-board-tool={w}
+                className={cn("rounded-md p-1.5", tool === w ? "bg-accent text-on-accent" : "text-muted hover:bg-fg/10 hover:text-fg")}
+                onClick={() => {
+                  setTool(w);
+                  setSel(null);
+                  setEditing(null);
+                }}
+                title={t(`editor.board.tools.${w}`)}
+                aria-label={t(`editor.board.tools.${w}`)}
+              >
+                <Icon size={16} />
+              </button>
+            );
+          })}
+        </div>
+        {(tool === "pen" || tool === "marker") && (
+          <div className="fade-in flex flex-wrap items-center gap-2">
+            <div className="flex items-center rounded-lg border bg-bg/40 p-0.5" aria-label={t("editor.board.strokeSize")}>
+              {BOARD_STROKE_SIZES.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  data-board-stroke={n}
+                  onClick={() => setStroke(n)}
+                  className={cn("flex h-7 w-7 items-center justify-center rounded-md", stroke === n ? "bg-accent/20" : "hover:bg-fg/10")}
+                  title={t("editor.board.strokeSizeValue", { n })}
+                  aria-label={t("editor.board.strokeSizeValue", { n })}
+                >
+                  <span className="rounded-full bg-fg" style={{ width: Math.min(14, n + 2), height: Math.min(14, n + 2) }} />
+                </button>
+              ))}
+            </div>
+            <div className="flex rounded-lg border bg-bg/40 p-0.5" aria-label={t("editor.board.color")}>
+              {BOARD_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  data-board-ink-color={c}
+                  onClick={() => setColor(c)}
+                  className={cn("m-0.5 h-5 w-5 rounded-full border border-fg/20", STYLE[c].dot, color === c && "ring-2 ring-accent ring-offset-1 ring-offset-bg")}
+                  title={t(`editor.board.colors.${c}`)}
+                  aria-label={t(`editor.board.colors.${c}`)}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        <div className={cn("flex rounded-lg border bg-bg/40 p-0.5", tool !== "select" && "hidden")} role="toolbar" aria-label={t("editor.board.add")}>
+          {SHAPE_KINDS.map((kind) => {
             const Icon = ICONS[kind];
             return (
               <button
@@ -385,7 +522,7 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
             </div>
             )}
             <div className="flex rounded-lg border bg-bg/40 p-0.5">
-              {selected.kind !== "line" && selected.kind !== "image" && (
+              {selected.kind !== "line" && selected.kind !== "image" && selected.kind !== "ink" && (
                 <button type="button" data-board-edit className="rounded-md p-1.5 text-muted hover:bg-fg/10 hover:text-fg" onClick={() => setEditing(selected.id)} title={t("editor.board.edit")} aria-label={t("editor.board.edit")}>
                   <Pencil size={15} />
                 </button>
@@ -430,6 +567,14 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
           if (e.button !== 0 && e.pointerType === "mouse") return;
           setSel(null);
           setEditing(null);
+          if (tool === "pen" || tool === "marker") {
+            startStroke(e.clientX, e.clientY);
+            return;
+          }
+          if (tool === "eraser") {
+            startErase(e.clientX, e.clientY);
+            return;
+          }
           startDrag({ mode: "pan", sx: e.clientX, sy: e.clientY, view: viewRef.current });
         }}
         role="application"
@@ -456,6 +601,8 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
                 style={{ left: item.x, top: item.y, width: item.w, height: item.h }}
                 onPointerDown={(e) => {
                   if (e.button !== 0 && e.pointerType === "mouse") return;
+                  // Beim Zeichnen und Radieren gehört das Ereignis der Fläche.
+                  if (tool !== "select") return;
                   e.stopPropagation();
                   setSel(item.id);
                   if (editing !== item.id) setEditing(null);
@@ -463,12 +610,29 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
                 }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
-                  if (item.kind !== "line") setEditing(item.id);
+                  if (item.kind !== "line" && item.kind !== "image" && item.kind !== "ink") setEditing(item.id);
                 }}
               >
                 {/* Linien sind dünn – diese Fläche macht sie treffbar. */}
                 {item.kind === "line" && <span className="absolute -inset-y-2 inset-x-0" />}
-                {item.kind === "image" && item.upload ?
+                {item.kind === "ink" && item.points ?
+                  <svg
+                    viewBox={`0 0 ${strokeBounds(item.points).w} ${strokeBounds(item.points).h}`}
+                    preserveAspectRatio="none"
+                    className="pointer-events-none h-full w-full overflow-visible"
+                    aria-hidden
+                  >
+                    <polyline
+                      points={pairs(item.points)}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={item.size ?? 4}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className={cn(s.tint, item.marker && "opacity-50")}
+                    />
+                  </svg>
+                : item.kind === "image" && item.upload ?
                   // eslint-disable-next-line @next/next/no-img-element -- eigener Upload, feste Größe auf der Fläche
                   <img
                     src={`/api/uploads/${encodeURIComponent(item.upload)}`}
@@ -488,7 +652,7 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
                     placeholder={t("editor.board.textPlaceholder")}
                     aria-label={t("editor.board.textLabel")}
                   />
-                : item.kind !== "line" && item.kind !== "image" ?
+                : item.kind !== "line" && item.kind !== "image" && item.kind !== "ink" ?
                   <p className={cn("h-full overflow-hidden whitespace-pre-wrap break-words text-[14px] leading-snug", (item.kind === "rect" || item.kind === "ellipse") && "flex items-center justify-center text-center")}>
                     {item.text}
                   </p>
@@ -508,6 +672,20 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
               </div>
             );
           })}
+          {/* Der Strich, der gerade gezogen wird */}
+          {draft && draft.length > 1 && (
+            <svg className="pointer-events-none absolute left-0 top-0 overflow-visible" width="1" height="1" aria-hidden>
+              <polyline
+                points={draft.map((p) => `${Math.round(p.x)},${Math.round(p.y)}`).join(" ")}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={tool === "marker" ? stroke * 2 : stroke}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={cn(STYLE[color].tint, tool === "marker" && "opacity-50")}
+              />
+            </svg>
+          )}
         </div>
         {items.length === 0 && !dropping && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted">{t("editor.board.empty")}</p>
@@ -519,7 +697,7 @@ export function BoardCanvas({ value, onChange }: { value: string; onChange: (con
       {uploadError && (
         <p role="alert" data-board-error className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">{uploadError}</p>
       )}
-      <p className="text-xs text-muted">{t("editor.board.hint")}</p>
+      <p className="text-xs text-muted">{tool === "select" ? t("editor.board.hint") : t("editor.board.drawHint")}</p>
     </div>
   );
 }
