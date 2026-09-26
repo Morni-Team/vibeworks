@@ -28,6 +28,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.2",
+    date: "2026-09-26",
+    title: "Leinwand in den Docs: Zettel, Formen und Texte frei anordnen",
+    titleEn: "Canvas in Docs: arrange notes, shapes and text freely",
+    changes: [
+      {
+        type: "neu",
+        text: "Neben der Markdown-Seite gibt es jetzt die Leinwand: eine freie Fläche mit Zetteln, Textfeldern, Rechtecken, Ellipsen und Linien. Anlegen über „Neue Leinwand“ im Seitenbaum",
+        en: "Alongside the Markdown page there is now the canvas: a free surface with sticky notes, text boxes, rectangles, ellipses and lines. Create one via “New canvas” in the page tree",
+        link: "/docs",
+      },
+      {
+        type: "neu",
+        text: "Elemente lassen sich ziehen, an der Ecke in der Größe ändern, einfärben, kopieren und löschen; Doppelklick bearbeitet den Text. Der Ausschnitt lässt sich schieben und zoomen, „Einpassen“ holt alles ins Bild",
+        en: "Elements can be dragged, resized at the corner, coloured, duplicated and deleted; double-click edits the text. The view can be panned and zoomed, and “fit to view” brings everything into sight",
+      },
+      {
+        type: "neu",
+        text: "Am Handy geht alles mit dem Finger: ziehen zum Verschieben, zwei Finger zum Zoomen. Gespeichert wird wie bei jeder Seite automatisch",
+        en: "On a phone everything works with your finger: drag to move, two fingers to zoom. Saving happens automatically, just like on any page",
+      },
+      {
+        type: "besser",
+        text: "Seiten ohne eigenes Symbol zeigen jetzt eines passend zu ihrer Art – die Leinwand eine Palette, eine gespeicherte Webseite eine Weltkugel",
+        en: "Pages without their own icon now show one that matches their kind – a palette for the canvas, a globe for a saved web page",
+      },
+    ],
+  },
+  {
     version: "1.7.1",
     date: "2026-09-25",
     title: "Erklärt, welche Projekte ein Schlüssel freigeben darf",

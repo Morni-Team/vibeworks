@@ -67,6 +67,7 @@ enum DocKind {
   PAGE
   WEB
   HTML
+  BOARD
 }
 
 /// Wer eine Seite sehen darf

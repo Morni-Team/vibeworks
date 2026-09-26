@@ -50,7 +50,7 @@ const projectIn = z.object({
 const docIn = z.object({
   ref: z.string().min(1).max(64),
   parentRef: z.string().max(64).nullish(),
-  kind: z.enum(["PAGE", "WEB", "HTML"]).catch("PAGE"),
+  kind: z.enum(["PAGE", "WEB", "HTML", "BOARD"]).catch("PAGE"),
   title: z.string().trim().min(1).max(200),
   icon: z.string().max(16).nullish(),
   content: z.string().max(1_000_000).default(""),

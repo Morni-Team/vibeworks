@@ -525,6 +525,8 @@ export const adminUserUpdateSchema = z.object({
 // ── Mini-Docs ───────────────────────────────────────────────
 
 export const docCreateSchema = z.object({
+  // Art der neuen Seite: gewöhnliche Markdown-Seite oder Leinwand (#211)
+  kind: z.enum(["PAGE", "BOARD"]).default("PAGE"),
   title: z
     .string()
     .trim()

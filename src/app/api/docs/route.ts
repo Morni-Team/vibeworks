@@ -18,6 +18,7 @@ export const POST = route(async (req) => {
     data: {
       ownerId: user.id,
       parentId: input.parentId,
+      kind: input.kind,
       title: input.title,
       position: await nextDocPosition(user.id, input.parentId),
     },

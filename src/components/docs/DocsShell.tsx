@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, ChevronRight, FolderInput, PanelLeft, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, ChevronRight, FolderInput, PanelLeft, Plus, Search, Shapes, Trash2 } from "lucide-react";
 import { ActionMenu } from "@/components/ui/ActionMenu";
 import { Modal } from "@/components/ui/Modal";
 import type { DocDetail, DocTreeItem } from "@/lib/docs";
+import { docIcon } from "@/lib/docs/kinds";
 import { api, errorMessage } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
 import { useFormat, useLocale, useT } from "@/lib/i18n/client";
@@ -78,10 +79,12 @@ export function DocsShell({ tree: initialTree, doc }: { tree: DocTreeItem[]; doc
       return next;
     });
 
-  async function create(parentId: string | null) {
+  async function create(parentId: string | null, kind: "PAGE" | "BOARD" = "PAGE") {
     setError(null);
     try {
-      const res = await api<{ doc: DocDetail; item: DocTreeItem }>("/api/docs", { body: { parentId, title: t("tree.defaultTitle") } });
+      const res = await api<{ doc: DocDetail; item: DocTreeItem }>("/api/docs", {
+        body: { parentId, kind, title: t(kind === "BOARD" ? "tree.defaultBoardTitle" : "tree.defaultTitle") },
+      });
       setTree((t) => [...t, res.item]);
       if (parentId) setExpanded((s) => new Set(s).add(parentId));
       setTreeOpen(false);
@@ -138,7 +141,7 @@ export function DocsShell({ tree: initialTree, doc }: { tree: DocTreeItem[]; doc
                   {kids.length ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : <span className="h-1 w-1 rounded-full bg-fg/25" />}
                 </button>
                 <Link href={`/docs/${item.id}`} onClick={() => setTreeOpen(false)} className="flex min-w-0 flex-1 items-center gap-1.5 py-1.5" aria-current={active ? "page" : undefined}>
-                  <span className="shrink-0">{item.icon || "📄"}</span>
+                  <span className="shrink-0">{docIcon(item)}</span>
                   <span className="truncate">{item.title}</span>
                 </Link>
                 <button type="button" onClick={() => void create(item.id)} className="rounded p-1 opacity-0 transition hover:bg-fg/10 group-hover:opacity-100 focus:opacity-100" aria-label={t("tree.addChildOf", { title: item.title })} title={t("tree.addChild")}>
@@ -174,7 +177,7 @@ export function DocsShell({ tree: initialTree, doc }: { tree: DocTreeItem[]; doc
     const walk = (parent: string | null, depth: number) => {
       for (const t of byParent.get(parent) ?? []) {
         if (blocked.has(t.id)) continue;
-        out.push({ id: t.id, label: `${"  ".repeat(depth)}${t.icon || "📄"} ${t.title}` });
+        out.push({ id: t.id, label: `${"  ".repeat(depth)}${docIcon(t)} ${t.title}` });
         walk(t.id, depth + 1);
       }
     };
@@ -189,7 +192,10 @@ export function DocsShell({ tree: initialTree, doc }: { tree: DocTreeItem[]; doc
       <aside className={cn("glass flex-col p-3 lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100dvh-8rem)] lg:self-start", treeOpen ? "flex" : "hidden")} aria-label={t("tree.label")}>
         <div className="mb-2 flex items-center justify-between gap-2 px-1">
           <Link href="/docs" className="flex items-center gap-2 font-semibold"><BookOpen size={17} className="text-accent-ink" /> {t("tree.title")}</Link>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => void create(null)} aria-label={t("tree.newPage")} title={t("tree.newPage")}><Plus size={16} /></button>
+          <span className="flex items-center gap-0.5">
+            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => void create(null, "BOARD")} aria-label={t("tree.newBoard")} title={t("tree.newBoard")}><Shapes size={16} /></button>
+            <button className="btn btn-ghost btn-icon btn-sm" onClick={() => void create(null)} aria-label={t("tree.newPage")} title={t("tree.newPage")}><Plus size={16} /></button>
+          </span>
         </div>
         <div className="relative mb-2">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
@@ -202,7 +208,7 @@ export function DocsShell({ tree: initialTree, doc }: { tree: DocTreeItem[]; doc
                 {matches.map((d) => (
                   <li key={d.id}>
                     <Link href={`/docs/${d.id}`} onClick={() => setTreeOpen(false)} className={cn("flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm", doc?.id === d.id ? "bg-accent/15" : "text-muted hover:bg-fg/5 hover:text-fg")}>
-                      <span>{d.icon || "📄"}</span>
+                      <span>{docIcon(d)}</span>
                       <span className="truncate">{d.title}</span>
                     </Link>
                   </li>
@@ -231,20 +237,26 @@ export function DocsShell({ tree: initialTree, doc }: { tree: DocTreeItem[]; doc
             <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/15 text-accent-ink"><BookOpen size={30} /></span>
             <h1 className="mt-4 text-2xl font-bold">{t("home.welcomeTitle")}</h1>
             <p className="mt-2 max-w-md text-muted">{t("home.welcomeText")}</p>
-            <button className="btn btn-primary mt-6" onClick={() => void create(null)}><Plus size={17} /> {t("home.createFirst")}</button>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <button className="btn btn-primary" onClick={() => void create(null)}><Plus size={17} /> {t("home.createFirst")}</button>
+              <button className="btn" onClick={() => void create(null, "BOARD")}><Shapes size={17} /> {t("home.createBoard")}</button>
+            </div>
           </div>
         ) : (
           <div className="glass p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h1 className="text-2xl font-bold">{t("home.title")}</h1>
-              <button className="btn btn-primary btn-sm" onClick={() => void create(null)}><Plus size={15} /> {t("tree.newPage")}</button>
+              <span className="flex flex-wrap gap-2">
+                <button className="btn btn-sm" onClick={() => void create(null, "BOARD")}><Shapes size={15} /> {t("tree.newBoard")}</button>
+                <button className="btn btn-primary btn-sm" onClick={() => void create(null)}><Plus size={15} /> {t("tree.newPage")}</button>
+              </span>
             </div>
             <h2 className="mb-3 mt-6 text-xs font-semibold uppercase tracking-wider text-muted">{t("home.recent")}</h2>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {recent.map((d) => (
                 <li key={d.id}>
                   <Link href={`/docs/${d.id}`} className="lift flex items-center gap-3 rounded-xl border bg-bg/20 p-3">
-                    <span className="text-2xl">{d.icon || "📄"}</span>
+                    <span className="text-2xl">{docIcon(d)}</span>
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{d.title}</span>
                       <span className="block text-xs text-muted" suppressHydrationWarning>{f.ago(d.updatedAt)}</span>

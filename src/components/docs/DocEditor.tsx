@@ -18,6 +18,8 @@ import {
   Quote,
 } from "lucide-react";
 import { Markdown } from "@/components/Markdown";
+import { BoardCanvas } from "./BoardCanvas";
+import { docIcon } from "@/lib/docs/kinds";
 import type { DocDetail, DocTreeItem } from "@/lib/docs";
 import { api, errorMessage } from "@/lib/client/api";
 import { cn } from "@/lib/utils";
@@ -54,6 +56,8 @@ export function DocEditor({
 }) {
   const t = useT("docs");
   const f = useFormat();
+  // Eine Leinwand speichert JSON statt Markdown – Kopf, Automatik und Baum sind dieselben.
+  const isBoard = doc.kind === "BOARD";
   const [title, setTitle] = useState(doc.title);
   const [icon, setIcon] = useState(doc.icon);
   const [content, setContent] = useState(doc.content);
@@ -204,7 +208,7 @@ export function DocEditor({
         {path.map((p) => (
           <span key={p.id} className="inline-flex items-center gap-1">
             <ChevronRight size={12} />
-            <Link href={`/docs/${p.id}`} className="max-w-40 truncate hover:text-fg">{p.icon} {p.title}</Link>
+            <Link href={`/docs/${p.id}`} className="max-w-40 truncate hover:text-fg">{docIcon(p)} {p.title}</Link>
           </span>
         ))}
       </nav>
@@ -212,7 +216,7 @@ export function DocEditor({
       <div className="flex items-start gap-3">
         <div className="relative">
           <button type="button" onClick={() => setEmojiOpen((o) => !o)} className="flex h-12 w-12 items-center justify-center rounded-xl text-3xl hover:bg-fg/10" aria-label={t("editor.chooseIcon")} title={t("editor.chooseIcon")}>
-            {icon || "📄"}
+            {docIcon({ icon, kind: doc.kind })}
           </button>
           {emojiOpen && (
             <div className="glass-strong fade-in absolute left-0 top-14 z-30 grid w-64 grid-cols-8 gap-1 p-2">
@@ -233,7 +237,7 @@ export function DocEditor({
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-y py-2">
+      <div className={cn("mt-4 flex flex-wrap items-center gap-2 border-y py-2", isBoard && "hidden")}>
         <div className="flex flex-wrap gap-0.5" role="toolbar" aria-label={t("editor.toolbar")}>
           {tools.map((tool) => (
             <button key={tool.k} type="button" className="rounded-md p-1.5 text-muted hover:bg-fg/10 hover:text-fg disabled:opacity-40" onClick={() => format(tool.k)} title={tool.label} aria-label={tool.label} disabled={mode === "preview"}>
@@ -263,6 +267,11 @@ export function DocEditor({
         </div>
       </div>
 
+      {isBoard ? (
+        <div className="mt-4 flex-1">
+          <BoardCanvas value={content} onChange={(v) => change({ content: v })} />
+        </div>
+      ) : (
       <div className={cn("mt-4 grid flex-1 gap-5", mode === "split" && "lg:grid-cols-2")}>
         {mode !== "preview" && (
           <textarea
@@ -294,13 +303,15 @@ export function DocEditor({
           </div>
         )}
       </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
         <span suppressHydrationWarning className={cn(state === "error" && "text-red-400")}>
           {stateText}
           {error && ` – ${error}`}
+          {!isBoard && ` · ${t("editor.words", { n: words })}`}
           {" · "}
-          {t("editor.words", { n: words })} · {t("editor.saveHint")}
+          {t("editor.saveHint")}
         </span>
       </div>
 
@@ -314,7 +325,7 @@ export function DocEditor({
             {children.map((c) => (
               <li key={c.id}>
                 <Link href={`/docs/${c.id}`} className="flex items-center gap-2 rounded-lg border bg-bg/20 px-3 py-2 text-sm hover:border-accent/50">
-                  <span>{c.icon || "📄"}</span>
+                  <span>{docIcon(c)}</span>
                   <span className="truncate">{c.title}</span>
                 </Link>
               </li>
