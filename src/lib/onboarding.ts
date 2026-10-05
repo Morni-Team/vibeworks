@@ -34,7 +34,19 @@ export const readPrefs = (raw: unknown): Required<OnboardingPrefs> => {
   return { hideDone: o.hideDone === true, dismissed: o.dismissed === true };
 };
 
+/** Leerer Zustand – reicht, solange die Karte ausgeblendet ist. */
+const AUSGEBLENDET: OnboardingState = {
+  steps: ONBOARDING_STEPS.map((key) => ({ key, done: false, href: STEP_LINKS[key] })),
+  hideDone: false,
+  dismissed: true,
+};
+
 export async function onboardingFor(userId: string): Promise<OnboardingState> {
+  // Wer die Karte weggeklickt hat, braucht die Prüfungen nicht: Das sparte auf
+  // dem Dashboard elf Abfragen je Aufruf (#214).
+  const vorab = await db.user.findUnique({ where: { id: userId }, select: { onboarding: true } });
+  if (readPrefs(vorab?.onboarding).dismissed) return AUSGEBLENDET;
+
   const [user, git, bot, repoProject, apiKey, rules, passkeys, notify, errorInbox, team, firstProject] = await Promise.all([
     db.user.findUnique({ where: { id: userId }, select: { totpEnabledAt: true, onboarding: true } }),
     db.gitCredential.count({ where: { userId } }),

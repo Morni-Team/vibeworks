@@ -28,6 +28,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.7.6",
+    date: "2026-10-05",
+    title: "Spürbar flotter bei vielen Aufgaben",
+    titleEn: "Noticeably faster with many tasks",
+    changes: [
+      {
+        type: "besser",
+        text: "Die Aufgabenübersicht lädt deutlich schneller: Gemessen mit 600 Aufgaben ging die übertragene Seite von 1592 auf 421 Kilobyte zurück, die Antwortzeit von 142 auf 68 Millisekunden. Je Abschnitt stehen zunächst 40 Zeilen, der Rest kommt über „Weitere anzeigen“",
+        en: "The task overview loads much faster: measured with 600 tasks, the transferred page went from 1592 to 421 kilobytes and the response time from 142 to 68 milliseconds. Each section shows 40 rows first, the rest follows via “show more”",
+        link: "/tasks",
+      },
+      {
+        type: "besser",
+        text: "Beschreibung und KI-Notiz werden in der Übersicht nicht mehr mitgeladen – die Liste zeigt sie ohnehin nicht. Erledigtes, das älter als 30 Tage ist, erscheint dort ebenfalls nicht mehr; im Projekt selbst steht weiterhin alles",
+        en: "Description and AI note are no longer loaded for the overview – the list doesn't show them anyway. Items completed more than 30 days ago no longer appear there either; inside the project everything is still available",
+      },
+      {
+        type: "besser",
+        text: "Filtern und Sortieren der Liste rechnet nicht mehr bei jedem Klick alles neu, das Dashboard spart elf Abfragen, wenn die Einstiegshilfe weggeklickt wurde, und die Instanz-Einstellungen werden je Seitenaufruf nur noch einmal gelesen",
+        en: "Filtering and sorting no longer recompute everything on every click, the dashboard saves eleven queries once the onboarding card is dismissed, and the instance settings are read only once per page view",
+      },
+      {
+        type: "besser",
+        text: "Neue Datenbank-Indizes für „erledigt am“, „Status geändert am“ und beerdigte Projekte – davon profitieren „Heute“, der Rückblick und das Dashboard",
+        en: "New database indexes for “done at”, “status changed at” and buried projects – benefiting “Today”, the review and the dashboard",
+      },
+    ],
+  },
+  {
     version: "1.7.5",
     date: "2026-09-26",
     title: "Auf der Leinwand mit der Hand zeichnen",

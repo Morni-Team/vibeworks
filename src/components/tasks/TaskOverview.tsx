@@ -30,6 +30,8 @@ const STATUS_TONE: Record<TaskStatus, string> = {
 };
 
 const BUCKET_TONE: Partial<Record<Bucket, string>> = { overdue: "text-red-400", today: "text-amber-400" };
+/** So viele Zeilen je Abschnitt auf einmal – der Rest kommt auf Knopfdruck. */
+const PRO_GRUPPE = 40;
 
 const byDue = (a: OverviewTask, b: OverviewTask) =>
   (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999") || a.createdAt.localeCompare(b.createdAt);
@@ -62,6 +64,9 @@ export function TaskOverview({ initial, today, allProjects = [], focusIds = [] }
   const [bulkOpen, setBulkOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<TaskStatus[]>([]);
+  // Lange Listen zeigen erst einen Teil – sonst stehen bei vielen Aufgaben
+  // hunderte Zeilen im HTML, und die Seite wird zäh (#214).
+  const [shown, setShown] = useState<Set<string>>(() => new Set());
   const [showDone, setShowDone] = useState(false);
   const [projectId, setProjectId] = useState("");
   const [editing, setEditing] = useState<OverviewTask | null>(null);
@@ -80,8 +85,16 @@ export function TaskOverview({ initial, today, allProjects = [], focusIds = [] }
     return c;
   }, [inProject]);
 
-  const visible = inProject.filter((t) => (showDone || t.status !== "DONE") && (!statuses.length || statuses.includes(t.status)));
-  const groups = BUCKETS.map((b) => ({ ...b, items: visible.filter((t) => bucketOf(t.dueDate, today) === b.value).sort(byDue) }));
+  // Gemerkt: Bei vielen Aufgaben lief das Filtern und Sortieren sonst bei
+  // jedem Tastendruck in der Oberfläche erneut durch die ganze Liste (#214).
+  const visible = useMemo(
+    () => inProject.filter((t) => (showDone || t.status !== "DONE") && (!statuses.length || statuses.includes(t.status))),
+    [inProject, showDone, statuses],
+  );
+  const groups = useMemo(
+    () => BUCKETS.map((b) => ({ ...b, items: visible.filter((t) => bucketOf(t.dueDate, today) === b.value).sort(byDue) })),
+    [visible, today],
+  );
 
   function merge(list: Array<TaskItem | null | undefined>, project: ProjectRef) {
     setTasks((ts) => {
@@ -166,7 +179,7 @@ export function TaskOverview({ initial, today, allProjects = [], focusIds = [] }
                   {ts(`bucket.${g.value}`)} <span className="font-normal">{g.items.length}</span>
                 </h2>
                 <ul className="space-y-2">
-                  {g.items.map((task) => {
+                  {(shown.has(g.value) ? g.items : g.items.slice(0, PRO_GRUPPE)).map((task) => {
                     const done = task.status === "DONE";
                     return (
                       <li key={task.id} className={cn("glass flex items-center gap-3 !rounded-xl px-3 py-2.5", done && "opacity-70")}>
@@ -219,6 +232,11 @@ export function TaskOverview({ initial, today, allProjects = [], focusIds = [] }
                     );
                   })}
                 </ul>
+                {g.items.length > PRO_GRUPPE && !shown.has(g.value) && (
+                  <button className="btn btn-sm mt-3" onClick={() => setShown((s) => new Set(s).add(g.value))}>
+                    {t("overview.showMore", { n: g.items.length - PRO_GRUPPE })}
+                  </button>
+                )}
               </section>
             ),
           )}

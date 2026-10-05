@@ -152,6 +152,7 @@ const de = {
     allProjects: "Alle Projekte",
     emptyFiltered: "Keine Aufgaben für diesen Filter",
     emptyOpen: "Keine Aufgaben offen",
+    showMore: "Weitere {n} anzeigen",
     emptyHint: "Aufgaben legst du auf der Seite des jeweiligen Projekts an.",
     bulk: {
       open: "Für mehrere Projekte",
@@ -324,6 +325,7 @@ const en: Shape<typeof de> = {
     allProjects: "All projects",
     emptyFiltered: "No tasks for this filter",
     emptyOpen: "No open tasks",
+    showMore: "Show {n} more",
     emptyHint: "You create tasks on each project's page.",
     bulk: {
       open: "For several projects",

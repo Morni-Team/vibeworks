@@ -8,11 +8,17 @@ import { dayKey, truncate } from "./utils";
 
 type Client = PrismaClient | Prisma.TransactionClient;
 
-export function serializeTask(t: Task) {
+/**
+ * Listen laden die langen Texte nicht mit (`omit`), deshalb sind sie hier
+ * freiwillig: Fehlen sie, steht in der Antwort `null` statt des Inhalts.
+ */
+type TaskRow = Omit<Task, "description" | "aiNote"> & { description?: string | null; aiNote?: string | null };
+
+export function serializeTask(t: TaskRow) {
   return {
     id: t.id,
     title: t.title,
-    description: t.description,
+    description: t.description ?? null,
     status: t.status,
     position: t.position,
     dueDate: t.dueDate ? dayKey(t.dueDate) : null,
@@ -29,7 +35,7 @@ export function serializeTask(t: Task) {
     issueAssignees: t.issueAssignees,
     createdByName: t.createdByName,
     createdVia: t.createdVia,
-    aiNote: t.aiNote,
+    aiNote: t.aiNote ?? null,
     aiLocked: t.aiLocked,
     column: t.column,
   };

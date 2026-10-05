@@ -452,6 +452,8 @@ model Project {
   @@unique([ownerId, slug])
   @@index([ownerId, status, position])
   @@index([ownerId, updatedAt])
+  /// Das Dashboard fragt ständig nach den nicht beerdigten Projekten (#214)
+  @@index([ownerId, buriedAt])
 }
 
 // ── Rollen ──────────────────────────────────────────────────
@@ -868,6 +870,9 @@ model Task {
   @@unique([projectId, autoKey])
   @@index([projectId, status, position])
   @@index([dueDate])
+  /// „Heute" und der Rückblick filtern und sortieren danach (#214)
+  @@index([doneAt])
+  @@index([statusChangedAt])
 }
 
 model Activity {

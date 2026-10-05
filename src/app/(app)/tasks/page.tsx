@@ -15,14 +15,28 @@ export async function generateMetadata() {
 // Den heutigen Kalendertag bestimmt der Server – so laufen Server-Render
 // und Hydration nicht auseinander, und im Container (UTC) kippt abends
 // nichts in den falschen Tag.
+//
+// Die Übersicht bleibt bewusst schlank: Beschreibung und KI-Notiz bleiben in
+// der Datenbank (`omit`) – die Liste zeigt sie nicht, und bei vielen Aufgaben
+// machten sie den größten Teil der übertragenen Seite aus. Lange Erledigtes
+// bleibt ebenfalls draußen; im Projekt selbst steht weiterhin alles.
+const ERLEDIGT_TAGE = 30;
+const HOECHSTENS = 1000;
+
 export default async function TasksPage() {
   const user = await requirePageUser();
   const today = dayKey(new Date());
+  const seit = new Date(Date.now() - ERLEDIGT_TAGE * 24 * 60 * 60 * 1000);
   const [tasks, projects, focus] = await Promise.all([
     db.task.findMany({
-      where: { project: { ownerId: user.id, status: { not: "ARCHIVED" } } },
+      where: {
+        project: { ownerId: user.id, status: { not: "ARCHIVED" } },
+        OR: [{ status: { not: "DONE" } }, { doneAt: { gte: seit } }],
+      },
+      omit: { description: true, aiNote: true },
       include: { project: { select: { id: true, name: true, accent: true, boardConfig: true } } },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+      take: HOECHSTENS,
     }),
     // Für „Aufgabe für mehrere Projekte“
     db.project.findMany({
