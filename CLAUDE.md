@@ -79,6 +79,11 @@ Größere Aufgaben laufen als VibeWorks-Workflow (`list_workflows`, `start_workf
 `complete_workflow_step`); den Projektaufbau (`get_project_structure`) nach dem Anlegen,
 Verschieben oder Entfernen von Bereichen mit `update_project_structure` nachziehen.
 
+- **Testdatenbank in UTF-8 anlegen.** `embedded-postgres` nimmt auf deutschem Windows sonst
+  WIN1252 – dann scheitern Emojis („🎨") und Pfeile („→") mit Fehler 22P05, obwohl der Server
+  auf Linux sie klaglos speichert. Das sah zweimal nach einem Fehler in VibeWorks aus und war
+  keiner. Beim Anlegen deshalb `initdbFlags: ["--encoding=UTF8", "--locale=C"]` setzen.
+
 ## Issues
 
 VibeWorks spiegelt Aufgaben als GitHub-Issues. Solche Issues enden mit
